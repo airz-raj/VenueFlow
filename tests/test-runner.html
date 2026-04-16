@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VenueFlow Test Suite</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      padding: 24px;
+      line-height: 1.5;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #4F81BD, #F0A030);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle {
+      color: #8b949e;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+    .summary {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .summary-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 16px 24px;
+      text-align: center;
+      min-width: 120px;
+    }
+    .summary-value {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .summary-label {
+      font-size: 12px;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .pass { color: #3fb950; }
+    .fail { color: #f85149; }
+    .suite {
+      margin-bottom: 24px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .suite-header {
+      padding: 12px 16px;
+      background: #1c2129;
+      border-bottom: 1px solid #30363d;
+      font-weight: 600;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .test-result {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 16px;
+      border-bottom: 1px solid #21262d;
+      font-size: 13px;
+    }
+    .test-result:last-child { border-bottom: none; }
+    .test-result .icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+    .test-result.pass .icon { background: hsla(130, 60%, 40%, 0.2); color: #3fb950; }
+    .test-result.fail .icon { background: hsla(0, 60%, 50%, 0.2); color: #f85149; }
+    .test-name { flex: 1; }
+    .test-error {
+      color: #f85149;
+      font-size: 12px;
+      padding: 4px 16px 8px 46px;
+      background: hsla(0, 60%, 50%, 0.05);
+    }
+    .time {
+      color: #8b949e;
+      font-size: 12px;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #30363d;
+      border-radius: 2px;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 VenueFlow Test Suite</h1>
+  <p class="subtitle">Automated unit tests for core modules</p>
+  
+  <div class="progress-bar">
+    <div class="progress-fill" id="progress-fill" style="width: 0%; background: #3fb950;"></div>
+  </div>
+  
+  <div class="summary" id="summary">
+    <div class="summary-card">
+      <div class="summary-value" id="total-count">-</div>
+      <div class="summary-label">Total</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-value pass" id="pass-count">-</div>
+      <div class="summary-label">Passed</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-value fail" id="fail-count">-</div>
+      <div class="summary-label">Failed</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-value" id="time-value">-</div>
+      <div class="summary-label">Time</div>
+    </div>
+  </div>
+
+  <div id="results"></div>
+
+  <!-- Load source modules -->
+  <script src="../js/utils.js"></script>
+  <script src="../js/wait-estimator.js"></script>
+  <script src="../js/heatmap.js"></script>
+
+  <!-- Test Runner Framework -->
+  <script>
+    /**
+     * Minimal Test Runner — Zero Dependencies
+     * Designed for in-browser test execution.
+     */
+    const TestRunner = (() => {
+      let _passed = 0;
+      let _failed = 0;
+      let _total = 0;
+      let _results = [];
+
+      function assert(condition, message = 'Assertion failed') {
+        if (!condition) throw new Error(message);
+      }
+
+      function assertEqual(actual, expected, message) {
+        if (actual !== expected) {
+          throw new Error(
+            message || `Expected ${JSON.stringify(expected)} but got ${JSON.stringify(actual)}`
+          );
+        }
+      }
+
+      function assertDeepEqual(actual, expected, message) {
+        if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+          throw new Error(
+            message || `Deep equality failed:\nExpected: ${JSON.stringify(expected)}\nActual: ${JSON.stringify(actual)}`
+          );
+        }
+      }
+
+      async function runSuite(suite) {
+        const suiteResults = {
+          name: suite.name,
+          tests: []
+        };
+
+        for (const test of suite.tests) {
+          _total++;
+          const result = { name: test.name, passed: false, error: null, time: 0 };
+          const start = performance.now();
+
+          try {
+            await test.run();
+            result.passed = true;
+            _passed++;
+          } catch (err) {
+            result.error = err.message;
+            _failed++;
+          }
+
+          result.time = (performance.now() - start).toFixed(2);
+          suiteResults.tests.push(result);
+        }
+
+        _results.push(suiteResults);
+        return suiteResults;
+      }
+
+      function getStats() {
+        return { total: _total, passed: _passed, failed: _failed };
+      }
+
+      return { assert, assertEqual, assertDeepEqual, runSuite, getStats };
+    })();
+  </script>
+
+  <!-- Load test files -->
+  <script src="unit/utils.test.js"></script>
+  <script src="unit/wait-estimator.test.js"></script>
+  <script src="unit/heatmap.test.js"></script>
+
+  <!-- Execute tests -->
+  <script>
+    (async () => {
+      const resultsContainer = document.getElementById('results');
+      const startTime = performance.now();
+
+      // Run all suites
+      const suites = [UtilsTests, WaitEstimatorTests, HeatmapTests];
+      
+      for (const suite of suites) {
+        const result = await TestRunner.runSuite(suite);
+        
+        // Render suite
+        const suiteEl = document.createElement('div');
+        suiteEl.className = 'suite';
+        
+        const passCount = result.tests.filter(t => t.passed).length;
+        const totalCount = result.tests.length;
+        const suiteStatus = passCount === totalCount ? '✅' : '❌';
+        
+        suiteEl.innerHTML = `
+          <div class="suite-header">
+            ${suiteStatus} ${result.name}
+            <span class="time">(${passCount}/${totalCount} passed)</span>
+          </div>
+          ${result.tests.map(t => `
+            <div class="test-result ${t.passed ? 'pass' : 'fail'}">
+              <div class="icon">${t.passed ? '✓' : '✕'}</div>
+              <div class="test-name">${t.name}</div>
+              <span class="time">${t.time}ms</span>
+            </div>
+            ${t.error ? `<div class="test-error">Error: ${t.error}</div>` : ''}
+          `).join('')}
+        `;
+        
+        resultsContainer.appendChild(suiteEl);
+      }
+
+      // Update summary
+      const stats = TestRunner.getStats();
+      const totalTime = (performance.now() - startTime).toFixed(0);
+      
+      document.getElementById('total-count').textContent = stats.total;
+      document.getElementById('pass-count').textContent = stats.passed;
+      document.getElementById('fail-count').textContent = stats.failed;
+      document.getElementById('time-value').textContent = totalTime + 'ms';
+
+      // Update progress bar
+      const percent = stats.total > 0 ? (stats.passed / stats.total * 100) : 0;
+      const progressFill = document.getElementById('progress-fill');
+      progressFill.style.width = percent + '%';
+      progressFill.style.background = stats.failed > 0 ? '#f85149' : '#3fb950';
+
+      // Console summary
+      console.log(`\n🧪 VenueFlow Tests: ${stats.passed}/${stats.total} passed (${stats.failed} failed) in ${totalTime}ms\n`);
+    })();
+  </script>
+</body>
+</html>

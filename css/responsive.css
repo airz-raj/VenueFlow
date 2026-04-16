@@ -1,0 +1,256 @@
+/**
+ * VenueFlow Responsive Styles
+ * 
+ * Mobile-first responsive design.
+ * Venue apps are primarily used on phones at events.
+ */
+
+/* ============================================
+   Extra Small (< 480px) — Small phones
+   ============================================ */
+@media (max-width: 479px) {
+  .header-venue {
+    display: none;
+  }
+
+  .live-indicator span:not(.live-dot) {
+    display: none;
+  }
+
+  .nav-tab .tab-label {
+    display: none;
+  }
+
+  .nav-tab .tab-icon {
+    font-size: 1.25em;
+  }
+  
+  .panel-title {
+    font-size: var(--font-size-lg);
+  }
+
+  .dashboard-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-2);
+  }
+
+  .wait-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .heatmap-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-message {
+    max-width: 92%;
+  }
+
+  .toast-container {
+    left: var(--space-2);
+    right: var(--space-2);
+  }
+
+  .toast {
+    max-width: 100%;
+  }
+
+  .map-legend {
+    left: var(--space-2);
+    right: var(--space-2);
+    bottom: var(--space-2);
+  }
+}
+
+/* ============================================
+   Small (480px - 767px) — Large phones
+   ============================================ */
+@media (min-width: 480px) and (max-width: 767px) {
+  .dashboard-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .wait-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .heatmap-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ============================================
+   Medium (768px - 1023px) — Tablets
+   ============================================ */
+@media (min-width: 768px) {
+  .header-content {
+    padding: 0 var(--space-6);
+  }
+
+  .nav-tabs {
+    padding: var(--space-2) var(--space-6);
+    justify-content: center;
+  }
+
+  .panel-header {
+    padding: var(--space-8) var(--space-6) var(--space-4);
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .panel-body {
+    padding: 0 var(--space-6) var(--space-6);
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .dashboard-stats {
+    grid-template-columns: repeat(4, 1fr);
+    padding: var(--space-4) var(--space-6);
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .wait-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .heatmap-stats {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .chat-panel {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .alerts-list {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+}
+
+/* ============================================
+   Large (1024px+) — Desktop
+   ============================================ */
+@media (min-width: 1024px) {
+  .wait-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .map-container {
+    height: calc(100vh - 112px);
+    height: calc(100dvh - 112px);
+  }
+
+  .chat-panel {
+    max-width: 720px;
+  }
+
+  /* Desktop can show a split view for map + sidebar */
+  .map-with-sidebar {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+  }
+
+  .map-with-sidebar .map-container {
+    height: calc(100vh - 112px);
+    height: calc(100dvh - 112px);
+  }
+
+  .map-sidebar {
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border-subtle);
+    overflow-y: auto;
+    padding: var(--space-4);
+  }
+}
+
+/* ============================================
+   Extra Large (1440px+) — Large monitors
+   ============================================ */
+@media (min-width: 1440px) {
+  .wait-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .heatmap-stats {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* ============================================
+   Print Styles
+   ============================================ */
+@media print {
+  .app-header,
+  .nav-tabs,
+  .chat-input-container,
+  .toast-container,
+  .splash-overlay {
+    display: none !important;
+  }
+
+  body {
+    color: black;
+    background: white;
+  }
+
+  .card, .alert-card, .wait-card {
+    border: 1px solid #ddd;
+    box-shadow: none;
+  }
+}
+
+/* ============================================
+   Touch & Pointer Optimizations
+   ============================================ */
+@media (hover: none) and (pointer: coarse) {
+  /* Enlarge tap targets on touch devices */
+  .nav-tab {
+    min-height: 44px;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .header-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .chip {
+    min-height: 36px;
+    padding: var(--space-2) var(--space-4);
+  }
+
+  /* Remove hover effects on touch */
+  .card:hover,
+  .wait-card:hover,
+  .stat-card:hover {
+    transform: none;
+  }
+}
+
+/* ============================================
+   Landscape Phone Optimization
+   ============================================ */
+@media (max-height: 500px) and (orientation: landscape) {
+  .map-container {
+    height: calc(100vh - 90px);
+    height: calc(100dvh - 90px);
+  }
+
+  .chat-panel {
+    height: calc(100vh - 90px);
+    height: calc(100dvh - 90px);
+  }
+
+  .splash-logo {
+    width: 48px;
+    height: 48px;
+    font-size: var(--font-size-xl);
+  }
+
+  .splash-title {
+    font-size: var(--font-size-xl);
+  }
+}
