@@ -10,7 +10,6 @@ server {
         index  index.html;
         
         # SPA routing: redirect 404s to index.html (or app.html)
-        # Though this handles primarily static files, if users navigate, we send them to index.
-        try_files $uri $uri/ /index.html;
+        try_files $uri /index.html;
     }
 }
