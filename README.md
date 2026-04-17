@@ -70,12 +70,13 @@ Attendees at large-scale sporting venues face recurring challenges:
 - Click-to-view facility details with live crowd data
 - Canvas-based fallback map with full POI visualization
 
-### 5. 🤖 Gemini AI Assistant
-- Context-aware AI chatbot powered by Google Gemini
-- System prompt enriched with real-time venue data AND live match state
-- Multi-turn conversation with memory
-- Quick-action chips for common queries
-- Intelligent local fallback with keyword matching
+### 5. 🧠 Smart Venue Advisor
+- **Algorithmic venue planning** instead of a superficial chatbot
+- **Dijkstra's Algorithm** for true shortest-path routing between venue POIs
+- **Multi-factor facility scoring** (density, walk distance, wait time, and trends)
+- Crowd trend forecasting (predicting future density based on phase and current derivatives)
+- Generates a structured, actionable venue plan rather than conversational text
+- Includes an AI-chat fallback for specific edge-case questions
 
 ### 6. 🏏 Live Match Simulation Engine
 - **Ball-by-ball cricket match simulation** driving the entire app
@@ -165,6 +166,7 @@ prt_cloud/
 │   ├── unit/
 │   │   ├── utils.test.js           # 29 unit tests
 │   │   ├── wait-estimator.test.js  # 23 unit tests
+│   │   ├── smart-advisor.test.js   # 27 unit tests
 │   │   └── heatmap.test.js         # 12 unit tests
 │   └── test-runner.html      # In-browser test runner (zero deps)
 ├── .gitignore
@@ -222,7 +224,7 @@ VenueFlow works in **full demo mode** without any API keys:
 
 ### Running Tests
 
-Open `tests/test-runner.html` in any browser. **64 unit tests** run automatically with zero dependencies.
+Open `tests/test-runner.html` in any browser. **91 unit tests** run automatically with zero dependencies.
 
 ---
 
@@ -254,12 +256,12 @@ Ball-by-ball cricket simulation with realistic probability distribution:
 - Phase management (innings, breaks)
 - Events feed into the notification and AI systems
 
-### AI Context Injection
+### Smart Recommendation Algorithm
 
-The Gemini assistant receives real-time context with every query:
-- Current crowded and quiet zones
-- Event phase and match state (score, batsmen, overs)
-- This enables responses like *"Food Court A has the shortest wait right now at 42% density. India are 152/3 in 17 overs!"*
+The Smart Advisor replaces superficial AI chat with genuine utility:
+- **Routing**: Models the venue as an undirected graph and computes shortest paths via Dijkstra's algorithm (walk times based on 1.4 m/s).
+- **Scoring Equation**: Combines distance penalties (0.2/m), density (linear score), wait time estimates, and trend adjustments (heavy penalty for +trends).
+- **Forecasting**: Predicts capacity bottlenecks 15 minutes out by differentiating current density and factoring in match phase.
 
 ---
 
@@ -309,9 +311,9 @@ The Gemini assistant receives real-time context with every query:
 | **Code Quality** | Modular IIFE architecture, JSDoc, consistent naming, separation of concerns, frozen APIs |
 | **Security** | CSP headers, XSS prevention, input sanitization, gitignored secrets, error boundaries |
 | **Efficiency** | requestAnimationFrame, debounced events, efficient DOM updates, canvas heatmap, lazy rendering |
-| **Testing** | 64 unit tests, zero-dependency test runner, covers utils/estimation/heatmap logic |
+| **Testing** | 91 unit tests, zero-dependency test runner, covers utils/estimation/routing/scoring |
 | **Accessibility** | WCAG 2.1 AA, 3 themes, keyboard nav, screen reader, font scaling, motion preferences |
-| **Google Services** | Maps JS API, Gemini AI, Firebase Auth, Firebase Realtime DB, Google Fonts |
+| **Algorithms** | Dijkstra shortest path, multi-factor facility scoring, local trend forecasting |
 
 ---
 

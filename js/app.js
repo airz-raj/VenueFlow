@@ -30,7 +30,7 @@ const VenueFlowApp = (() => {
     { id: 'crowd', label: 'Crowd', icon: '🔥' },
     { id: 'waits', label: 'Waits', icon: '⏱️' },
     { id: 'map', label: 'Map', icon: '🗺️' },
-    { id: 'assistant', label: 'AI', icon: '🤖' },
+    { id: 'assistant', label: 'Smart Plan', icon: '🧠' },
     { id: 'alerts', label: 'Alerts', icon: '📢' },
     { id: 'settings', label: 'Settings', icon: '⚙️' }
   ];
@@ -731,55 +731,146 @@ const VenueFlowApp = (() => {
   }
 
   /* ==========================================
-     ASSISTANT PANEL
+     SMART PLAN PANEL (AI Tab)
      ========================================== */
 
   function _renderAssistantPanel() {
     const panel = document.getElementById('panel-assistant');
-    if (!panel || panel.querySelector('.chat-messages')) return;
+    if (!panel) return;
+
+    const plan = SmartAdvisor.generateVenuePlan(
+      state.crowdData, state.currentPhase, state.matchState, 'north_stand'
+    );
+
+    const POI_NAMES = {
+      gate_north: 'Gate A (North)', gate_south: 'Gate B (South)', gate_east: 'Gate C (East)', gate_west: 'Gate D (West)',
+      food_court_a: 'Food Court A', food_court_b: 'Food Court B', food_court_c: 'Food Court C',
+      restroom_n1: 'WC N1', restroom_n2: 'WC N2', restroom_s1: 'WC S1', restroom_s2: 'WC S2',
+      merch_store: 'Merchandise', first_aid_center: 'First Aid', north_stand: 'North Stand',
+      south_stand: 'South Stand', east_pavilion: 'East Pavilion', west_pavilion: 'West Pavilion',
+      vip_lounge: 'VIP Lounge', parking_a: 'Parking A', parking_b: 'Parking B',
+      info_desk: 'Info Desk', atm_1: 'ATM'
+    };
 
     panel.innerHTML = `
-      <div class="chat-panel">
-        <div class="chat-header">
-          <div class="chat-avatar" aria-hidden="true">🤖</div>
-          <div class="chat-header-info">
-            <div class="chat-header-name">VenueFlow AI</div>
-            <div class="chat-header-status"><span class="live-dot" style="width:6px;height:6px;"></span> Online</div>
+      <div class="panel-header">
+        <h1 class="panel-title">🧠 Smart Venue Plan</h1>
+        <p class="panel-subtitle">AI-optimized recommendations based on live crowd data, walking distances, and trends.</p>
+      </div>
+      <div class="plan-location-bar">
+        <span>📍 Your location: <strong>North Stand</strong></span>
+        <span class="plan-timestamp">Updated ${new Date().toLocaleTimeString()}</span>
+      </div>
+      <div class="plan-sections">
+        ${plan.sections.map(s => _renderPlanSection(s, POI_NAMES)).join('')}
+      </div>
+
+      <!-- AI Chat below the plan -->
+      <div class="section-header" style="margin-top:var(--space-4);">
+        <h2 class="section-title">💬 Ask AI Assistant</h2>
+      </div>
+      <div class="ai-chat-compact">
+        <div class="chat-messages-compact" id="chat-messages" role="log" aria-live="polite">
+          <div class="chat-msg-compact assistant">
+            <span class="chat-tag">AI</span>
+            <span>Need specific help? Ask me about any facility, route, or strategy.</span>
           </div>
-          <button class="btn btn-ghost" id="btn-clear-chat" aria-label="Clear conversation">🗑️</button>
-        </div>
-        <div class="chat-messages" id="chat-messages" role="log" aria-label="Chat messages" aria-live="polite">
-          <div class="chat-message assistant">
-            <div class="message-avatar">🤖</div>
-            <div class="message-bubble">
-              <strong>Hey there! 👋</strong><br><br>
-              I'm your VenueFlow AI assistant for Narendra Modi Stadium. I have real-time data on crowd levels, wait times, and facilities. Ask me anything!<br><br>
-              Try the quick actions below or type your question.
-            </div>
-          </div>
-        </div>
-        <div class="chat-chips" id="chat-chips">
-          ${GeminiService.getQuickActions().map(a => `
-            <button class="chip" data-query="${VenueUtils.sanitizeHTML(a.query)}">${a.label}</button>
-          `).join('')}
         </div>
         <div class="chat-input-container">
           <div class="chat-input-wrapper">
-            <textarea class="chat-input" id="chat-input" placeholder="Ask about food, gates, crowd, scores..."
+            <textarea class="chat-input" id="chat-input" placeholder="e.g. quickest route to food from east pavilion?"
                       rows="1" aria-label="Message" maxlength="500"></textarea>
             <button class="chat-send-btn" id="btn-send-chat" aria-label="Send" disabled>➤</button>
           </div>
         </div>
       </div>
+
+      <button class="btn btn-secondary" style="width:100%;margin-top:var(--space-3);"
+              onclick="VenueFlowApp.refreshPlan()">🔄 Refresh Plan</button>
     `;
     _setupChatHandlers();
+  }
+
+  function _renderPlanSection(section, names) {
+    if (section.id === 'forecast') {
+      return `
+        <div class="plan-card plan-forecast">
+          <div class="plan-card-header">
+            <span class="plan-icon">${section.icon}</span>
+            <span class="plan-card-title">${section.title}</span>
+          </div>
+          <div class="plan-forecast-summary">${section.summary}</div>
+          ${section.hotspots.length > 0 ? `
+            <div class="plan-hotspot-list">
+              ${section.hotspots.map(h => `
+                <div class="plan-hotspot">
+                  <span class="ph-name">${VenueUtils.sanitizeHTML(h.name)}</span>
+                  <span class="ph-current" style="color:${VenueUtils.getDensityColor(h.current)}">${h.current}%</span>
+                  <span class="ph-arrow">→</span>
+                  <span class="ph-predicted" style="color:${VenueUtils.getDensityColor(h.predicted)}">${h.predicted}%</span>
+                  <span class="ph-reason">${VenueUtils.sanitizeHTML(h.reasoning)}</span>
+                </div>
+              `).join('')}
+            </div>
+          ` : '<div style="color:var(--text-tertiary);font-size:var(--font-size-sm);padding:8px 0;">All zones comfortable ✅</div>'}
+        </div>
+      `;
+    }
+
+    const route = section.route;
+    const routeStr = route && route.path
+      ? route.path.map(p => names[p] || p).join(' → ')
+      : '';
+
+    return `
+      <div class="plan-card">
+        <div class="plan-card-header">
+          <span class="plan-icon">${section.icon}</span>
+          <span class="plan-card-title">${section.title}</span>
+          <span class="plan-score" title="Recommendation score (lower = better)">Score: ${section.score}</span>
+        </div>
+        <div class="plan-recommendation">
+          <div class="plan-rec-name">${VenueUtils.sanitizeHTML(section.recommendation)}</div>
+          <div class="plan-rec-stats">
+            <span class="prs" style="color:${VenueUtils.getDensityColor(section.density)}">
+              ${section.density}% density
+            </span>
+            ${section.waitTime !== undefined ? `<span class="prs">⏱ ~${VenueUtils.formatWaitTime(section.waitTime)} wait</span>` : ''}
+            ${section.walkTime !== null ? `<span class="prs">🚶 ${section.walkTime} min walk</span>` : ''}
+            ${section.totalTime ? `<span class="prs total">📊 ${VenueUtils.formatWaitTime(section.totalTime)} total</span>` : ''}
+          </div>
+        </div>
+        ${routeStr ? `<div class="plan-route"><span class="plan-route-label">Route:</span> ${routeStr}</div>` : ''}
+        ${section.forecast ? `
+          <div class="plan-forecast-inline">
+            📈 15 min forecast: ${section.forecast.predicted}% (${section.forecast.confidence} confidence) — ${section.forecast.reasoning}
+          </div>
+        ` : ''}
+        ${section.tip ? `<div class="plan-tip">💡 ${section.tip}</div>` : ''}
+        ${section.alternatives && section.alternatives.length > 0 ? `
+          <div class="plan-alternatives">
+            <div class="plan-alt-label">Alternatives:</div>
+            ${section.alternatives.map(a => `
+              <div class="plan-alt-item">
+                <span>${VenueUtils.sanitizeHTML(a.name)}</span>
+                <span style="color:${VenueUtils.getDensityColor(a.density)}">${a.density}%</span>
+                ${a.totalTime ? `<span class="plan-alt-time">${VenueUtils.formatWaitTime(a.totalTime)}</span>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  function refreshPlan() {
+    _renderAssistantPanel();
+    VenueUtils.announceToScreenReader('Smart Plan refreshed with latest data');
   }
 
   function _setupChatHandlers() {
     const input = document.getElementById('chat-input');
     const sendBtn = document.getElementById('btn-send-chat');
-    const clearBtn = document.getElementById('btn-clear-chat');
-    const chips = document.getElementById('chat-chips');
     if (!input || !sendBtn) return;
 
     input.addEventListener('input', () => {
@@ -791,12 +882,6 @@ const VenueFlowApp = (() => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (input.value.trim()) _sendChat(input.value.trim()); }
     });
     sendBtn.addEventListener('click', () => { if (input.value.trim()) _sendChat(input.value.trim()); });
-    if (clearBtn) clearBtn.addEventListener('click', () => {
-      GeminiService.clearHistory();
-      const m = document.getElementById('chat-messages');
-      if (m) m.innerHTML = '<div class="chat-message assistant"><div class="message-avatar">🤖</div><div class="message-bubble">Conversation cleared! How can I help? 😊</div></div>';
-    });
-    if (chips) chips.addEventListener('click', (e) => { const c = e.target.closest('.chip'); if (c) _sendChat(c.dataset.query); });
   }
 
   async function _sendChat(msg) {
@@ -805,14 +890,13 @@ const VenueFlowApp = (() => {
     const sendBtn = document.getElementById('btn-send-chat');
     if (!container || !input) return;
 
-    container.innerHTML += `<div class="chat-message user"><div class="message-avatar">👤</div><div class="message-bubble">${VenueUtils.sanitizeHTML(msg)}</div></div>`;
+    container.innerHTML += `<div class="chat-msg-compact user"><span class="chat-tag">You</span><span>${VenueUtils.sanitizeHTML(msg)}</span></div>`;
     input.value = ''; input.style.height = 'auto'; sendBtn.disabled = true;
 
     const tid = VenueUtils.generateId('t');
-    container.innerHTML += `<div class="chat-message assistant" id="${tid}"><div class="message-avatar">🤖</div><div class="message-bubble"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div></div>`;
+    container.innerHTML += `<div class="chat-msg-compact assistant" id="${tid}"><span class="chat-tag">AI</span><span class="typing-dots">...</span></div>`;
     container.scrollTop = container.scrollHeight;
 
-    // Include match state in context
     const context = { crowdData: state.crowdData, eventPhase: state.currentPhase, matchState: state.matchState };
     const response = await GeminiService.sendMessage(msg, context);
 
@@ -822,7 +906,7 @@ const VenueFlowApp = (() => {
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/\n/g, '<br>')
       .replace(/- (.*?)(?:<br>|$)/g, '• $1<br>');
-    container.innerHTML += `<div class="chat-message assistant"><div class="message-avatar">🤖</div><div class="message-bubble">${formatted}</div></div>`;
+    container.innerHTML += `<div class="chat-msg-compact assistant"><span class="chat-tag">AI</span><span>${formatted}</span></div>`;
     container.scrollTop = container.scrollHeight;
   }
 
@@ -944,7 +1028,7 @@ const VenueFlowApp = (() => {
   function setReducedMotion(e) { AccessibilityService.setReducedMotion(e); }
 
   return {
-    init, navigateTo,
+    init, navigateTo, refreshPlan,
     setTheme, increaseFontSize, decreaseFontSize, resetFontSize, setReducedMotion
   };
 })();

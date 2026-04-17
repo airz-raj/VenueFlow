@@ -150,6 +150,7 @@
   <script src="../js/utils.js"></script>
   <script src="../js/wait-estimator.js"></script>
   <script src="../js/heatmap.js"></script>
+  <script src="../js/smart-advisor.js"></script>
 
   <!-- Test Runner Framework -->
   <script>
@@ -223,6 +224,7 @@
   <script src="unit/utils.test.js"></script>
   <script src="unit/wait-estimator.test.js"></script>
   <script src="unit/heatmap.test.js"></script>
+  <script src="unit/smart-advisor.test.js"></script>
 
   <!-- Execute tests -->
   <script>
@@ -231,7 +233,7 @@
       const startTime = performance.now();
 
       // Run all suites
-      const suites = [UtilsTests, WaitEstimatorTests, HeatmapTests];
+      const suites = [UtilsTests, WaitEstimatorTests, HeatmapTests, SmartAdvisorTests];
       
       for (const suite of suites) {
         const result = await TestRunner.runSuite(suite);
