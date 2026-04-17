@@ -1,9 +1,8 @@
 /**
- * VenueFlow Application Controller
+ * VenueFlow Application Controller v2
  * 
- * Main orchestrator for the VenueFlow smart venue assistant.
- * Handles SPA routing, state management, UI rendering,
- * and module coordination.
+ * Complete rewrite with dashboard-first design,
+ * live match integration, and real functionality.
  * 
  * @module app
  */
@@ -17,21 +16,21 @@ const VenueFlowApp = (() => {
      ========================================== */
 
   const state = {
-    activeTab: 'map',
+    activeTab: 'home',
     currentPhase: 'active',
     crowdData: {},
+    matchState: null,
     isLoading: true,
-    isAssistantOpen: false
+    crowdFilter: 'all'
   };
-
-  const eventBus = VenueUtils.createEventBus();
 
   /** Tab definitions */
   const TABS = [
-    { id: 'map', label: 'Map', icon: '🗺️' },
+    { id: 'home', label: 'Home', icon: '🏠' },
     { id: 'crowd', label: 'Crowd', icon: '🔥' },
-    { id: 'waits', label: 'Wait Times', icon: '⏱️' },
-    { id: 'assistant', label: 'Assistant', icon: '🤖' },
+    { id: 'waits', label: 'Waits', icon: '⏱️' },
+    { id: 'map', label: 'Map', icon: '🗺️' },
+    { id: 'assistant', label: 'AI', icon: '🤖' },
     { id: 'alerts', label: 'Alerts', icon: '📢' },
     { id: 'settings', label: 'Settings', icon: '⚙️' }
   ];
@@ -40,26 +39,15 @@ const VenueFlowApp = (() => {
      Configuration
      ========================================== */
 
-  /**
-   * Get configuration, using defaults if config.js not loaded.
-   */
   function _getConfig() {
-    if (typeof VENUEFLOW_CONFIG !== 'undefined') {
-      return VENUEFLOW_CONFIG;
-    }
-    // Default config for demo
+    if (typeof VENUEFLOW_CONFIG !== 'undefined') return VENUEFLOW_CONFIG;
     return {
-      GOOGLE_MAPS_API_KEY: 'YOUR_GOOGLE_MAPS_API_KEY',
-      GEMINI_API_KEY: 'YOUR_GEMINI_API_KEY',
-      FIREBASE_CONFIG: {
-        apiKey: 'YOUR_FIREBASE_API_KEY'
-      },
+      GOOGLE_MAPS_API_KEY: '', GEMINI_API_KEY: '',
+      FIREBASE_CONFIG: { apiKey: '' },
       VENUE: {
-        name: 'Narendra Modi Stadium',
-        city: 'Ahmedabad, India',
+        name: 'Narendra Modi Stadium', city: 'Ahmedabad, India',
         coordinates: { lat: 23.0927, lng: 72.5957 },
-        capacity: 132000,
-        mapZoom: 17
+        capacity: 132000, mapZoom: 17
       }
     };
   }
@@ -68,126 +56,114 @@ const VenueFlowApp = (() => {
      Initialization
      ========================================== */
 
-  /**
-   * Initialize the entire application.
-   */
   async function init() {
     console.log('[VenueFlow] Starting initialization...');
     const config = _getConfig();
 
-    // Show splash
-    _updateSplashProgress(10, 'Initializing services...');
-
-    // 1. Initialize accessibility first
+    _updateSplash(10, 'Loading preferences...');
     AccessibilityService.initialize();
-    _updateSplashProgress(20, 'Loaded preferences...');
 
-    // 2. Initialize Firebase
+    _updateSplash(25, 'Connecting live data...');
     await FirebaseService.initialize(config.FIREBASE_CONFIG);
-    _updateSplashProgress(40, 'Connected to live data...');
 
-    // 3. Initialize Gemini
+    _updateSplash(40, 'Starting AI assistant...');
     GeminiService.initialize(config.GEMINI_API_KEY, config.VENUE);
-    _updateSplashProgress(55, 'AI assistant ready...');
 
-    // 4. Initialize Notifications
+    _updateSplash(55, 'Enabling notifications...');
     NotificationService.initialize();
-    _updateSplashProgress(65, 'Notifications enabled...');
 
-    // 5. Set up data listeners
+    _updateSplash(65, 'Syncing crowd data...');
     _setupDataListeners();
-    _updateSplashProgress(75, 'Syncing crowd data...');
 
-    // 6. Render the UI
+    _updateSplash(75, 'Building interface...');
     _renderInitialUI();
-    _updateSplashProgress(85, 'Building interface...');
 
-    // 7. Initialize map (after DOM is ready)
-    MapsService.initialize('venue-map', config.VENUE);
-    _updateSplashProgress(95, 'Loading venue map...');
+    _updateSplash(85, 'Starting match engine...');
+    EventEngine.start(6000);
+    _setupEventEngine();
 
-    // 8. Initialize heatmap
-    HeatmapEngine.initialize('heatmap-canvas');
+    _updateSplash(92, 'Loading venue map...');
+    MapsService.initialize('venue-map-embed', config.VENUE);
 
-    // 9. Load alerts
+    _updateSplash(96, 'Loading alerts...');
     const alerts = FirebaseService.getSimulatedAlerts();
-    alerts.forEach(alert => NotificationService.addAlert(alert, false));
-    
-    // Start demo alerts
+    alerts.forEach(a => NotificationService.addAlert(a, false));
     NotificationService.startDemoAlerts();
 
-    // 10. Set up routing
     _setupRouting();
-
-    // Done!
-    _updateSplashProgress(100, 'Ready!');
+    _updateSplash(100, 'Welcome to VenueFlow!');
     state.isLoading = false;
 
-    // Hide splash after a brief moment
     setTimeout(() => {
       const splash = document.getElementById('splash-screen');
       if (splash) splash.classList.add('hidden');
-    }, 600);
-
-    // Navigate to initial tab
-    const hash = window.location.hash.slice(1) || 'map';
-    navigateTo(hash);
+      // Render home after splash is gone
+      setTimeout(() => {
+        const hash = window.location.hash.slice(1) || 'home';
+        navigateTo(hash);
+      }, 100);
+    }, 500);
 
     console.log('[VenueFlow] Initialization complete ✓');
   }
 
+  function _updateSplash(pct, text) {
+    const fill = document.getElementById('splash-progress-fill');
+    const st = document.getElementById('splash-status');
+    if (fill) fill.style.width = pct + '%';
+    if (st) st.textContent = text;
+  }
+
   /* ==========================================
-     Splash Screen
+     Event Engine Integration
      ========================================== */
 
-  /**
-   * Update splash screen progress.
-   * @param {number} percent - Progress percentage
-   * @param {string} text - Status text
-   */
-  function _updateSplashProgress(percent, text) {
-    const fill = document.getElementById('splash-progress-fill');
-    const status = document.getElementById('splash-status');
-    if (fill) fill.style.width = `${percent}%`;
-    if (status) status.textContent = text;
+  function _setupEventEngine() {
+    EventEngine.onEvent('matchUpdate', (matchState) => {
+      state.matchState = matchState;
+      state.currentPhase = matchState.phase;
+      // Update home scoreboard if visible
+      if (state.activeTab === 'home') _updateScoreboard();
+    });
+
+    EventEngine.onEvent('phaseChange', (info) => {
+      state.currentPhase = info.phase;
+      NotificationService.addAlert({
+        type: info.phase === 'break' ? 'warning' : 'info',
+        title: '🏏 ' + info.label,
+        message: info.phase === 'break'
+          ? 'Innings break! Great time to grab food or visit restrooms.'
+          : 'The match continues. Enjoy!'
+      });
+    });
+
+    EventEngine.onEvent('highlight', (info) => {
+      NotificationService.addAlert({
+        type: info.type === 'wicket' ? 'warning' : info.type === 'milestone' ? 'deal' : 'info',
+        title: info.title,
+        message: info.message
+      });
+      // Update live commentary on home
+      if (state.activeTab === 'home') _updateCommentary(info);
+    });
   }
 
   /* ==========================================
      Data Listeners
      ========================================== */
 
-  /**
-   * Set up real-time data update listeners.
-   * @private
-   */
   function _setupDataListeners() {
-    // Crowd data updates
     FirebaseService.onData('crowdUpdate', (data) => {
       state.crowdData = data;
-
-      // Update heatmap
       HeatmapEngine.updateData(data);
-
-      // Update wait times panel if visible
-      if (state.activeTab === 'waits') {
-        _renderWaitTimesPanel();
-      }
-
-      // Update crowd panel if visible
-      if (state.activeTab === 'crowd') {
-        _renderCrowdPanel();
-      }
-
-      // Update dashboard stats
-      _updateDashboardStats();
+      if (state.activeTab === 'waits') _renderWaitsPanel();
+      if (state.activeTab === 'crowd') _renderCrowdPanel();
+      if (state.activeTab === 'home') _updateHomeCrowdPreview();
     });
 
-    // New alert listener
-    NotificationService.onAlert((alert) => {
+    NotificationService.onAlert(() => {
       _updateAlertBadge();
-      if (state.activeTab === 'alerts') {
-        _renderAlertsPanel();
-      }
+      if (state.activeTab === 'alerts') _renderAlertsPanel();
     });
   }
 
@@ -195,299 +171,506 @@ const VenueFlowApp = (() => {
      Routing
      ========================================== */
 
-  /**
-   * Set up hash-based SPA routing.
-   * @private
-   */
   function _setupRouting() {
     window.addEventListener('hashchange', () => {
-      const tab = window.location.hash.slice(1) || 'map';
-      navigateTo(tab);
+      navigateTo(window.location.hash.slice(1) || 'home');
     });
   }
 
-  /**
-   * Navigate to a tab.
-   * @param {string} tabId - Tab identifier
-   */
   function navigateTo(tabId) {
-    const validTab = TABS.find(t => t.id === tabId);
-    if (!validTab) return;
-
+    const tab = TABS.find(t => t.id === tabId);
+    if (!tab) return;
     state.activeTab = tabId;
 
-    // Update URL without triggering hashchange
-    if (window.location.hash !== `#${tabId}`) {
-      history.replaceState(null, '', `#${tabId}`);
+    if (window.location.hash !== '#' + tabId) {
+      history.replaceState(null, '', '#' + tabId);
     }
 
-    // Update tab active states
-    document.querySelectorAll('.nav-tab').forEach(tab => {
-      const isActive = tab.dataset.tab === tabId;
-      tab.classList.toggle('active', isActive);
-      tab.setAttribute('aria-selected', isActive);
+    document.querySelectorAll('.nav-tab').forEach(t => {
+      const active = t.dataset.tab === tabId;
+      t.classList.toggle('active', active);
+      t.setAttribute('aria-selected', active);
+    });
+    document.querySelectorAll('.panel').forEach(p => {
+      p.classList.toggle('active', p.id === 'panel-' + tabId);
     });
 
-    // Show active panel
-    document.querySelectorAll('.panel').forEach(panel => {
-      panel.classList.toggle('active', panel.id === `panel-${tabId}`);
-    });
-
-    // Render panel content
     switch (tabId) {
-      case 'map':
-        // Force map resize
-        if (typeof google !== 'undefined' && google.maps) {
-          google.maps.event.trigger(document.getElementById('venue-map'), 'resize');
-        }
-        break;
-      case 'crowd':
-        _renderCrowdPanel();
-        break;
-      case 'waits':
-        _renderWaitTimesPanel();
-        break;
-      case 'assistant':
-        _renderAssistantPanel();
-        break;
+      case 'home': _renderHomePanel(); break;
+      case 'crowd': _renderCrowdPanel(); break;
+      case 'waits': _renderWaitsPanel(); break;
+      case 'map': _renderMapPanel(); break;
+      case 'assistant': _renderAssistantPanel(); break;
       case 'alerts':
         _renderAlertsPanel();
         NotificationService.markAllRead();
         _updateAlertBadge();
         break;
-      case 'settings':
-        _renderSettingsPanel();
-        break;
+      case 'settings': _renderSettingsPanel(); break;
     }
-
-    VenueUtils.announceToScreenReader(`Navigated to ${validTab.label}`);
+    VenueUtils.announceToScreenReader('Navigated to ' + tab.label);
   }
 
   /* ==========================================
-     Initial UI Rendering
+     Initial UI
      ========================================== */
 
-  /**
-   * Render the initial static UI structure.
-   * @private
-   */
   function _renderInitialUI() {
-    // Render navigation tabs
-    const navContainer = document.getElementById('nav-tabs');
-    if (navContainer) {
-      navContainer.innerHTML = TABS.map(tab => `
-        <button class="nav-tab ${tab.id === state.activeTab ? 'active' : ''}" 
-                data-tab="${tab.id}"
-                role="tab"
-                aria-selected="${tab.id === state.activeTab}"
-                aria-controls="panel-${tab.id}"
-                id="tab-${tab.id}"
-                tabindex="${tab.id === state.activeTab ? '0' : '-1'}">
-          <span class="tab-icon" aria-hidden="true">${tab.icon}</span>
-          <span class="tab-label">${tab.label}</span>
-          ${tab.id === 'alerts' ? '<span class="tab-badge" id="alert-badge" style="display:none;">0</span>' : ''}
-        </button>
-      `).join('');
+    const nav = document.getElementById('nav-tabs');
+    if (!nav) return;
 
-      // Add click handlers
-      navContainer.querySelectorAll('.nav-tab').forEach(tab => {
-        tab.addEventListener('click', () => navigateTo(tab.dataset.tab));
-      });
+    nav.innerHTML = TABS.map(t => `
+      <button class="nav-tab ${t.id === 'home' ? 'active' : ''}"
+              data-tab="${t.id}" role="tab"
+              aria-selected="${t.id === 'home'}"
+              aria-controls="panel-${t.id}"
+              id="tab-${t.id}">
+        <span class="tab-icon" aria-hidden="true">${t.icon}</span>
+        <span class="tab-label">${t.label}</span>
+        ${t.id === 'alerts' ? '<span class="tab-badge" id="alert-badge" style="display:none;">0</span>' : ''}
+      </button>
+    `).join('');
 
-      // Keyboard navigation for tabs
-      navContainer.addEventListener('keydown', (e) => {
-        const tabs = [...navContainer.querySelectorAll('.nav-tab')];
-        const currentIndex = tabs.indexOf(document.activeElement);
-        
-        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-          e.preventDefault();
-          const next = tabs[(currentIndex + 1) % tabs.length];
-          next.focus();
-          next.click();
-        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-          e.preventDefault();
-          const prev = tabs[(currentIndex - 1 + tabs.length) % tabs.length];
-          prev.focus();
-          prev.click();
-        }
-      });
-    }
+    nav.querySelectorAll('.nav-tab').forEach(t => {
+      t.addEventListener('click', () => navigateTo(t.dataset.tab));
+    });
 
-    // Theme toggle button handler
+    nav.addEventListener('keydown', (e) => {
+      const tabs = [...nav.querySelectorAll('.nav-tab')];
+      const idx = tabs.indexOf(document.activeElement);
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        tabs[(idx + 1) % tabs.length].focus();
+        tabs[(idx + 1) % tabs.length].click();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        tabs[(idx - 1 + tabs.length) % tabs.length].focus();
+        tabs[(idx - 1 + tabs.length) % tabs.length].click();
+      }
+    });
+
     const themeBtn = document.getElementById('btn-theme');
     if (themeBtn) {
       themeBtn.addEventListener('click', () => {
-        const newTheme = AccessibilityService.cycleTheme();
-        const icons = { dark: '🌙', light: '☀️', 'high-contrast': '🔳' };
-        themeBtn.querySelector('.btn-icon').textContent = icons[newTheme] || '🌙';
+        const t = AccessibilityService.cycleTheme();
+        themeBtn.querySelector('.btn-icon').textContent = { dark: '🌙', light: '☀️', 'high-contrast': '🔳' }[t] || '🌙';
       });
     }
   }
 
   /* ==========================================
-     Dashboard Stats
+     HOME PANEL — The Star of the Show
      ========================================== */
 
-  /**
-   * Update the overview stats in the header.
-   * @private
-   */
-  function _updateDashboardStats() {
-    const data = state.crowdData;
-    if (!data || Object.keys(data).length === 0) return;
+  function _renderHomePanel() {
+    const panel = document.getElementById('panel-home');
+    if (!panel) return;
 
-    const overallDensity = HeatmapEngine.calculateOverallDensity(data);
-    const congested = HeatmapEngine.getCongestedZones(data, 70);
+    const ms = state.matchState || EventEngine.getMatchState();
+    const data = state.crowdData;
+    const overallDensity = Object.keys(data).length ? HeatmapEngine.calculateOverallDensity(data) : 0;
+    const congested = Object.keys(data).length ? HeatmapEngine.getCongestedZones(data, 70) : [];
     const totalAttendees = Object.values(data)
       .filter(d => d.type === 'seating')
       .reduce((sum, d) => sum + (d.currentCount || 0), 0);
 
-    const statsContainer = document.getElementById('dashboard-stats');
-    if (!statsContainer) return;
-
-    statsContainer.innerHTML = `
-      <div class="stat-card" style="animation-delay: 0s;">
-        <div class="stat-icon">👥</div>
-        <div class="stat-value">${VenueUtils.formatNumber(totalAttendees)}</div>
-        <div class="stat-label">Attendees</div>
-      </div>
-      <div class="stat-card" style="animation-delay: 0.05s;">
-        <div class="stat-icon">🔥</div>
-        <div class="stat-value" style="color: ${VenueUtils.getDensityColor(overallDensity)}">
-          ${Math.round(overallDensity)}%
+    panel.innerHTML = `
+      <!-- LIVE SCOREBOARD HERO -->
+      <div class="scoreboard-hero" id="scoreboard-hero">
+        <div class="scoreboard-header">
+          <div class="match-badge">
+            <span class="live-dot"></span>
+            <span>LIVE — ${VenueUtils.sanitizeHTML(ms.matchTitle)}</span>
+          </div>
+          <div class="match-venue-info">${VenueUtils.sanitizeHTML(ms.venue)}</div>
         </div>
-        <div class="stat-label">Avg Density</div>
+        <div class="scoreboard-body">
+          <div class="team-score-main">
+            <div class="team-flag">🇮🇳</div>
+            <div class="team-info-block">
+              <div class="team-name-lg">${VenueUtils.sanitizeHTML(ms.teamBatting)}</div>
+              <div class="score-big">${ms.score.runs}<span class="score-wickets">/${ms.score.wickets}</span></div>
+              <div class="score-overs">Overs: ${ms.overs} · RR: ${ms.runRate}</div>
+            </div>
+          </div>
+          <div class="score-divider">vs</div>
+          <div class="team-score-main opponent">
+            <div class="team-flag">🇦🇺</div>
+            <div class="team-info-block">
+              <div class="team-name-lg">${VenueUtils.sanitizeHTML(ms.teamBowling)}</div>
+              <div class="score-secondary">Yet to bat</div>
+            </div>
+          </div>
+        </div>
+        <div class="scoreboard-batsmen">
+          ${ms.batsmen.map(b => `
+            <div class="batsman-row ${b.isStriker ? 'striker' : ''}">
+              <span class="batsman-name">${b.isStriker ? '🏏 ' : ''}${VenueUtils.sanitizeHTML(b.name)}</span>
+              <span class="batsman-stats">${b.runs} (${b.balls}) · ${b.fours}×4 ${b.sixes}×6</span>
+            </div>
+          `).join('')}
+          <div class="bowler-row">
+            <span class="bowler-label">🎯 ${VenueUtils.sanitizeHTML(ms.bowler.name)}</span>
+            <span class="bowler-stats">${ms.bowler.overs}-${ms.bowler.maidens}-${ms.bowler.runs}-${ms.bowler.wickets}</span>
+          </div>
+        </div>
+        <div class="recent-balls" id="recent-balls">
+          <span class="recent-label">Recent: </span>
+          ${ms.recentBalls.slice(-12).map(b => `<span class="ball-chip ${_ballClass(b)}">${b}</span>`).join('')}
+        </div>
       </div>
-      <div class="stat-card" style="animation-delay: 0.1s;">
-        <div class="stat-icon">⚠️</div>
-        <div class="stat-value">${congested.length}</div>
-        <div class="stat-label">Congested Zones</div>
+
+      <!-- LIVE COMMENTARY -->
+      <div class="commentary-strip" id="commentary-strip">
+        <div class="commentary-icon">📺</div>
+        <div class="commentary-text" id="commentary-text">
+          Partnership: ${ms.partnerships} runs · Last wicket: ${VenueUtils.sanitizeHTML(ms.lastWicket)}
+        </div>
       </div>
-      <div class="stat-card" style="animation-delay: 0.15s;">
-        <div class="stat-icon">🏟️</div>
-        <div class="stat-value">${state.currentPhase === 'active' ? 'LIVE' : 'BREAK'}</div>
-        <div class="stat-label">Event Status</div>
+
+      <!-- QUICK STATS ROW -->
+      <div class="home-stats-row">
+        <div class="home-stat-card">
+          <div class="home-stat-icon">👥</div>
+          <div class="home-stat-value">${VenueUtils.formatNumber(totalAttendees || 108000)}</div>
+          <div class="home-stat-label">In Stadium</div>
+        </div>
+        <div class="home-stat-card">
+          <div class="home-stat-icon glow-${overallDensity > 70 ? 'red' : overallDensity > 40 ? 'yellow' : 'green'}">🔥</div>
+          <div class="home-stat-value" style="color: ${VenueUtils.getDensityColor(overallDensity)}">${Math.round(overallDensity)}%</div>
+          <div class="home-stat-label">Crowd Level</div>
+        </div>
+        <div class="home-stat-card">
+          <div class="home-stat-icon">⚠️</div>
+          <div class="home-stat-value">${congested.length}</div>
+          <div class="home-stat-label">Congested</div>
+        </div>
+        <div class="home-stat-card">
+          <div class="home-stat-icon">🌡️</div>
+          <div class="home-stat-value">${ms.weather.temp}°</div>
+          <div class="home-stat-label">${ms.weather.condition}</div>
+        </div>
       </div>
+
+      <!-- QUICK ACTIONS GRID -->
+      <div class="section-header">
+        <h2 class="section-title">Quick Actions</h2>
+        <span class="section-hint">Tap any action for instant help</span>
+      </div>
+      <div class="quick-actions-grid">
+        ${_renderQuickAction('🍔', 'Find Food', 'Nearest food courts', '#waits')}
+        ${_renderQuickAction('🚻', 'Restrooms', 'Shortest queue nearby', '#waits')}
+        ${_renderQuickAction('🗺️', 'Navigate', 'Interactive venue map', '#map')}
+        ${_renderQuickAction('🤖', 'Ask AI', 'Get smart assistance', '#assistant')}
+        ${_renderQuickAction('🔥', 'Crowd Map', 'Live density heatmap', '#crowd')}
+        ${_renderQuickAction('🚪', 'Exit Routes', 'Fastest gate to leave', '#assistant')}
+        ${_renderQuickAction('🏥', 'First Aid', 'Medical assistance', '#map')}
+        ${_renderQuickAction('📢', 'Alerts', 'Live notifications', '#alerts')}
+      </div>
+
+      <!-- TOP WAIT TIMES PREVIEW -->
+      <div class="section-header">
+        <h2 class="section-title">Current Wait Times</h2>
+        <button class="section-link" onclick="VenueFlowApp.navigateTo('waits')">View All →</button>
+      </div>
+      <div class="home-waits-preview" id="home-waits-preview">
+        ${_renderHomeWaitsPreview()}
+      </div>
+
+      <!-- CROWD PREVIEW -->
+      <div class="section-header">
+        <h2 class="section-title">Crowd Status</h2>
+        <button class="section-link" onclick="VenueFlowApp.navigateTo('crowd')">View Map →</button>
+      </div>
+      <div class="home-crowd-preview" id="home-crowd-preview">
+        ${_renderHomeCrowdPreview()}
+      </div>
+
+      <!-- VENUE INFO CARD -->
+      <div class="venue-info-card">
+        <div class="venue-info-header">
+          <span class="venue-info-icon">🏟️</span>
+          <div>
+            <div class="venue-info-name">Narendra Modi Stadium</div>
+            <div class="venue-info-sub">Ahmedabad, Gujarat · Capacity: 1,32,000</div>
+          </div>
+        </div>
+        <div class="venue-info-details">
+          <div class="venue-detail"><span>⏰</span> Started: ${ms.startTime}</div>
+          <div class="venue-detail"><span>🌤️</span> ${ms.weather.condition}, ${ms.weather.temp}°C, Humidity ${ms.weather.humidity}%</div>
+          <div class="venue-detail"><span>💨</span> Wind: ${ms.weather.wind}</div>
+          <div class="venue-detail"><span>🎫</span> Toss: ${VenueUtils.sanitizeHTML(ms.toss)}</div>
+        </div>
+      </div>
+    `;
+
+    // Wire up quick actions
+    panel.querySelectorAll('.quick-action-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const href = card.dataset.href;
+        if (href && href.startsWith('#')) {
+          navigateTo(href.slice(1));
+        }
+      });
+    });
+  }
+
+  function _renderQuickAction(icon, title, desc, href) {
+    return `
+      <button class="quick-action-card" data-href="${href}" aria-label="${title}: ${desc}">
+        <div class="qa-icon">${icon}</div>
+        <div class="qa-title">${title}</div>
+        <div class="qa-desc">${desc}</div>
+      </button>
     `;
   }
 
+  function _renderHomeWaitsPreview() {
+    if (!state.crowdData || Object.keys(state.crowdData).length === 0) {
+      return '<div class="skeleton-bar" style="height:60px;"></div>'.repeat(3);
+    }
+    const estimates = WaitEstimator.estimateAllWaitTimes(state.crowdData, state.currentPhase);
+    const top = estimates.filter(e => ['food', 'restroom', 'merchandise'].includes(e.type)).slice(0, 4);
+    const icons = { food: '🍔', restroom: '🚻', merchandise: '🛍️', gate: '🚪' };
+
+    return top.map(e => `
+      <div class="hwait-item">
+        <div class="hwait-icon">${icons[e.type] || '📍'}</div>
+        <div class="hwait-info">
+          <div class="hwait-name">${VenueUtils.sanitizeHTML(e.name)}</div>
+          <div class="hwait-bar-track">
+            <div class="hwait-bar-fill" style="width:${Math.min(100, e.density)}%;background:${e.densityLevel.color};"></div>
+          </div>
+        </div>
+        <div class="hwait-time" style="color:${e.densityLevel.color}">~${VenueUtils.formatWaitTime(e.waitMinutes)}</div>
+      </div>
+    `).join('');
+  }
+
+  function _renderHomeCrowdPreview() {
+    if (!state.crowdData || Object.keys(state.crowdData).length === 0) {
+      return '<div class="skeleton-bar" style="height:40px;"></div>'.repeat(3);
+    }
+    const congested = HeatmapEngine.getCongestedZones(state.crowdData, 60);
+    const quiet = Object.entries(state.crowdData)
+      .filter(([, d]) => d.density < 35)
+      .map(([id, d]) => ({ id, ...d }))
+      .sort((a, b) => a.density - b.density)
+      .slice(0, 3);
+
+    let html = '';
+    if (congested.length > 0) {
+      html += `<div class="crowd-preview-section">
+        <div class="crowd-preview-label danger">🔴 Busy Areas</div>
+        ${congested.slice(0, 3).map(z => `
+          <div class="crowd-preview-item">
+            <span class="cpi-name">${VenueUtils.sanitizeHTML(z.name)}</span>
+            <span class="cpi-density" style="color:${VenueUtils.getDensityColor(z.density)}">${Math.round(z.density)}%</span>
+          </div>
+        `).join('')}
+      </div>`;
+    }
+    if (quiet.length > 0) {
+      html += `<div class="crowd-preview-section">
+        <div class="crowd-preview-label success">🟢 Quiet Areas</div>
+        ${quiet.map(z => `
+          <div class="crowd-preview-item">
+            <span class="cpi-name">${VenueUtils.sanitizeHTML(z.name)}</span>
+            <span class="cpi-density" style="color:${VenueUtils.getDensityColor(z.density)}">${Math.round(z.density)}%</span>
+          </div>
+        `).join('')}
+      </div>`;
+    }
+    return html || '<div style="padding:12px;color:var(--text-tertiary);">Loading crowd data...</div>';
+  }
+
+  function _updateScoreboard() {
+    const ms = state.matchState;
+    if (!ms) return;
+    // Efficiently update only changing parts
+    const hero = document.getElementById('scoreboard-hero');
+    if (!hero) return;
+
+    const scoreBig = hero.querySelector('.score-big');
+    if (scoreBig) scoreBig.innerHTML = `${ms.score.runs}<span class="score-wickets">/${ms.score.wickets}</span>`;
+
+    const overs = hero.querySelector('.score-overs');
+    if (overs) overs.textContent = `Overs: ${ms.overs} · RR: ${ms.runRate}`;
+
+    // Update batsmen
+    const batsmenRows = hero.querySelectorAll('.batsman-row');
+    ms.batsmen.forEach((b, i) => {
+      if (batsmenRows[i]) {
+        batsmenRows[i].className = 'batsman-row' + (b.isStriker ? ' striker' : '');
+        batsmenRows[i].querySelector('.batsman-name').textContent = (b.isStriker ? '🏏 ' : '') + b.name;
+        batsmenRows[i].querySelector('.batsman-stats').textContent = `${b.runs} (${b.balls}) · ${b.fours}×4 ${b.sixes}×6`;
+      }
+    });
+
+    // Update bowler
+    const bowlerStats = hero.querySelector('.bowler-stats');
+    if (bowlerStats) bowlerStats.textContent = `${ms.bowler.overs}-${ms.bowler.maidens}-${ms.bowler.runs}-${ms.bowler.wickets}`;
+
+    // Update recent balls
+    const ballsContainer = document.getElementById('recent-balls');
+    if (ballsContainer) {
+      ballsContainer.innerHTML = `<span class="recent-label">Recent: </span>` +
+        ms.recentBalls.slice(-12).map(b => `<span class="ball-chip ${_ballClass(b)}">${b}</span>`).join('');
+    }
+  }
+
+  function _updateCommentary(info) {
+    const el = document.getElementById('commentary-text');
+    if (el) {
+      el.style.animation = 'none';
+      void el.offsetHeight; // force reflow
+      el.style.animation = 'slideInRight 0.4s ease-out';
+      el.textContent = info.commentary || info.message;
+    }
+  }
+
+  function _updateHomeCrowdPreview() {
+    const el = document.getElementById('home-crowd-preview');
+    if (el) el.innerHTML = _renderHomeCrowdPreview();
+    const wEl = document.getElementById('home-waits-preview');
+    if (wEl) wEl.innerHTML = _renderHomeWaitsPreview();
+  }
+
+  function _ballClass(b) {
+    if (b === '4') return 'ball-four';
+    if (b === '6') return 'ball-six';
+    if (b === 'W') return 'ball-wicket';
+    if (b === '0') return 'ball-dot';
+    if (b === 'WD' || b === 'NB') return 'ball-extra';
+    return 'ball-run';
+  }
+
   /* ==========================================
-     Crowd Panel
+     CROWD PANEL — Redesigned
      ========================================== */
 
-  /**
-   * Render the crowd density panel.
-   * @private
-   */
   function _renderCrowdPanel() {
     const body = document.getElementById('crowd-body');
     if (!body) return;
 
     const data = state.crowdData;
     const zones = HeatmapEngine.getHottestZones(data);
+    const overall = HeatmapEngine.calculateOverallDensity(data);
+    const congested = HeatmapEngine.getCongestedZones(data, 70);
+    const quiet = zones.filter(z => z.density < 30);
+    const filter = state.crowdFilter;
+
+    // Filter zones
+    const filteredZones = filter === 'all' ? zones
+      : filter === 'busy' ? zones.filter(z => z.density > 60)
+      : filter === 'quiet' ? zones.filter(z => z.density < 40)
+      : zones.filter(z => z.type === filter);
 
     body.innerHTML = `
+      <!-- Density Bar -->
       <div class="heatmap-legend">
         <span class="heatmap-label">Low</span>
         <div class="heatmap-gradient-bar"></div>
         <span class="heatmap-label">Critical</span>
       </div>
-      <div class="heatmap-stats" id="crowd-stats">
-        ${_renderCrowdStats(data)}
+
+      <!-- Summary Cards -->
+      <div class="crowd-summary-grid">
+        <div class="crowd-summary-card">
+          <div class="cs-circle" style="border-color:${VenueUtils.getDensityColor(overall)}">
+            <span style="color:${VenueUtils.getDensityColor(overall)}">${Math.round(overall)}%</span>
+          </div>
+          <div class="cs-label">Overall</div>
+        </div>
+        <div class="crowd-summary-card">
+          <div class="cs-value danger-text">${congested.length}</div>
+          <div class="cs-label">Congested Zone${congested.length !== 1 ? 's' : ''}</div>
+        </div>
+        <div class="crowd-summary-card">
+          <div class="cs-value success-text">${quiet.length}</div>
+          <div class="cs-label">Quiet Zone${quiet.length !== 1 ? 's' : ''}</div>
+        </div>
+        <div class="crowd-summary-card">
+          <div class="cs-value">${Object.keys(data).length}</div>
+          <div class="cs-label">Total Zones</div>
+        </div>
       </div>
-      <div style="position: relative; width: 100%; height: 350px; margin-bottom: var(--space-4); border-radius: var(--radius-xl); overflow: hidden; border: 1px solid var(--border-subtle);">
-        <canvas id="heatmap-canvas" style="width: 100%; height: 100%;"></canvas>
+
+      <!-- Heatmap Canvas -->
+      <div class="heatmap-container">
+        <canvas id="heatmap-canvas"></canvas>
       </div>
-      <h3 style="font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-3);">Zone Details</h3>
-      <div class="zone-list" role="list">
-        ${zones.map(zone => _renderZoneItem(zone)).join('')}
+
+      <!-- Filter Tabs -->
+      <div class="crowd-filter-tabs" role="tablist" aria-label="Filter zones">
+        ${['all', 'busy', 'quiet', 'food', 'restroom', 'gate'].map(f => `
+          <button class="filter-tab ${filter === f ? 'active' : ''}" data-filter="${f}"
+                  role="tab" aria-selected="${filter === f}">
+            ${f === 'all' ? '📋 All' : f === 'busy' ? '🔴 Busy' : f === 'quiet' ? '🟢 Quiet'
+              : f === 'food' ? '🍔 Food' : f === 'restroom' ? '🚻 WC' : '🚪 Gates'}
+          </button>
+        `).join('')}
+      </div>
+
+      <!-- Zone List -->
+      <div class="crowd-zone-list" role="list" aria-label="Zone density list">
+        ${filteredZones.length === 0
+          ? '<div class="empty-filter">No zones match this filter.</div>'
+          : filteredZones.map((z, i) => _renderCrowdZoneCard(z, i)).join('')}
       </div>
     `;
 
-    // Re-initialize heatmap on the new canvas
+    // Wire up filters
+    body.querySelectorAll('.filter-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.crowdFilter = btn.dataset.filter;
+        _renderCrowdPanel();
+      });
+    });
+
+    // Re-init heatmap
     HeatmapEngine.destroy();
     HeatmapEngine.initialize('heatmap-canvas');
     HeatmapEngine.updateData(data);
   }
 
-  /**
-   * Render crowd stats overview cards.
-   * @param {Object} data - Crowd data
-   * @returns {string} HTML string
-   */
-  function _renderCrowdStats(data) {
-    const overall = HeatmapEngine.calculateOverallDensity(data);
-    const congested = HeatmapEngine.getCongestedZones(data, 70);
-    const quiet = HeatmapEngine.getCongestedZones(data, -Infinity)
-      .filter(z => z.density < 30);
-
-    return `
-      <div class="status-card">
-        <div class="status-icon ${overall > 70 ? 'danger' : overall > 40 ? 'warning' : 'success'}">
-          ${overall > 70 ? '🔴' : overall > 40 ? '🟡' : '🟢'}
-        </div>
-        <div class="status-info">
-          <div class="status-label">Overall</div>
-          <div class="status-value">${Math.round(overall)}%</div>
-        </div>
-      </div>
-      <div class="status-card">
-        <div class="status-icon danger">⚠️</div>
-        <div class="status-info">
-          <div class="status-label">Congested</div>
-          <div class="status-value">${congested.length} zones</div>
-        </div>
-      </div>
-      <div class="status-card">
-        <div class="status-icon success">✅</div>
-        <div class="status-info">
-          <div class="status-label">Low Traffic</div>
-          <div class="status-value">${quiet.length} zones</div>
-        </div>
-      </div>
-      <div class="status-card">
-        <div class="status-icon info">📊</div>
-        <div class="status-info">
-          <div class="status-label">Total Zones</div>
-          <div class="status-value">${Object.keys(data).length}</div>
-        </div>
-      </div>
-    `;
-  }
-
-  /**
-   * Render a single zone list item.
-   * @param {Object} zone - Zone data
-   * @returns {string} HTML string
-   */
-  function _renderZoneItem(zone) {
+  function _renderCrowdZoneCard(zone, index) {
     const level = VenueUtils.getDensityLevel(zone.density);
-    const trendIcons = { increasing: '📈', decreasing: '📉', stable: '➡️' };
-    
+    const trendIcon = zone.trend === 'increasing' ? '↑' : zone.trend === 'decreasing' ? '↓' : '→';
+    const trendClass = zone.trend === 'increasing' ? 'trend-up' : zone.trend === 'decreasing' ? 'trend-down' : 'trend-stable';
+    const typeIcons = { food: '🍔', restroom: '🚻', gate: '🚪', merchandise: '🛍️', seating: '💺', parking: '🅿️', first_aid: '🏥', atm: '🏧' };
+    const alt = WaitEstimator.findBestAlternative(zone.id, state.crowdData);
+
     return `
-      <div class="zone-item" role="listitem" aria-label="${VenueUtils.sanitizeHTML(zone.name)}, ${Math.round(zone.density)}% density, ${level.label}">
-        <div class="zone-density-indicator" style="background: ${level.color};"></div>
-        <div class="zone-info">
-          <div class="zone-name">${VenueUtils.sanitizeHTML(zone.name)}</div>
-          <div class="zone-details">${level.label} · ${trendIcons[zone.trend] || '➡️'} ${zone.trend}</div>
+      <div class="crowd-zone-card" role="listitem" style="animation-delay:${index * 0.03}s">
+        <div class="czc-header">
+          <div class="czc-icon">${typeIcons[zone.type] || '📍'}</div>
+          <div class="czc-info">
+            <div class="czc-name">${VenueUtils.sanitizeHTML(zone.name)}</div>
+            <div class="czc-type">${zone.type ? zone.type.charAt(0).toUpperCase() + zone.type.slice(1) : 'Zone'}</div>
+          </div>
+          <div class="czc-density">
+            <span class="czc-density-val" style="color:${level.color}">${Math.round(zone.density)}%</span>
+            <span class="czc-trend ${trendClass}">${trendIcon}</span>
+          </div>
         </div>
-        <div class="zone-density-value" style="color: ${level.color};">${Math.round(zone.density)}%</div>
-        <div class="zone-progress-bar">
-          <div class="zone-progress-fill" style="width: ${Math.round(zone.density)}%; background: ${level.color};"></div>
+        <div class="czc-bar">
+          <div class="czc-bar-fill" style="width:${Math.round(zone.density)}%;background:${level.color};"></div>
         </div>
+        ${alt && zone.density > 60 ? `
+          <div class="czc-alt">
+            💡 Try <strong>${VenueUtils.sanitizeHTML(alt.name)}</strong> instead — only ${Math.round(alt.density)}% full
+          </div>
+        ` : ''}
       </div>
     `;
   }
 
   /* ==========================================
-     Wait Times Panel
+     WAIT TIMES PANEL
      ========================================== */
 
-  /**
-   * Render the wait times panel.
-   * @private
-   */
-  function _renderWaitTimesPanel() {
+  function _renderWaitsPanel() {
     const body = document.getElementById('waits-body');
     if (!body) return;
 
@@ -502,62 +685,58 @@ const VenueFlowApp = (() => {
     `;
   }
 
-  /**
-   * Render a wait time card with circular gauge.
-   * @param {Object} est - Wait time estimate
-   * @param {number} index - Card index for animation delay
-   * @returns {string} HTML string
-   */
   function _renderWaitCard(est, index) {
-    const gaugePercent = WaitEstimator.calculateGaugePercent(est.waitMinutes, 25);
-    const circumference = 2 * Math.PI * 48;
-    const offset = circumference - (gaugePercent / 100) * circumference;
+    const gp = WaitEstimator.calculateGaugePercent(est.waitMinutes, 25);
+    const circ = 2 * Math.PI * 48;
+    const off = circ - (gp / 100) * circ;
     const color = est.densityLevel.color;
-    const categoryIcons = {
-      food: '🍔', restroom: '🚻', merchandise: '🛍️', gate: '🚪', 
-      parking: '🅿️', first_aid: '🏥', atm: '🏧'
-    };
+    const icons = { food: '🍔', restroom: '🚻', merchandise: '🛍️', gate: '🚪', parking: '🅿️', first_aid: '🏥', atm: '🏧' };
+    const alt = WaitEstimator.findBestAlternative(est.zoneId, state.crowdData);
 
     return `
-      <div class="wait-card" style="animation-delay: ${index * 0.05}s;" 
-           role="article" aria-label="${VenueUtils.sanitizeHTML(est.name)}, estimated wait ${VenueUtils.formatWaitTime(est.waitMinutes)}">
+      <div class="wait-card" style="animation-delay:${index * 0.04}s"
+           role="article" aria-label="${VenueUtils.sanitizeHTML(est.name)}, wait ${VenueUtils.formatWaitTime(est.waitMinutes)}">
         <div class="gauge-container">
           <svg class="gauge-svg" viewBox="0 0 108 108">
             <circle class="gauge-bg" cx="54" cy="54" r="48"/>
-            <circle class="gauge-fill" cx="54" cy="54" r="48"
-                    stroke="${color}"
-                    stroke-dasharray="${circumference}"
-                    stroke-dashoffset="${offset}"/>
+            <circle class="gauge-fill" cx="54" cy="54" r="48" stroke="${color}"
+                    stroke-dasharray="${circ}" stroke-dashoffset="${off}"/>
           </svg>
           <div class="gauge-text">
-            <div class="gauge-value" style="color: ${color};">${VenueUtils.formatWaitTime(est.waitMinutes)}</div>
+            <div class="gauge-value" style="color:${color}">${VenueUtils.formatWaitTime(est.waitMinutes)}</div>
             <div class="gauge-unit">wait</div>
           </div>
         </div>
-        <div class="wait-name">
-          ${categoryIcons[est.type] || '📍'} ${VenueUtils.sanitizeHTML(est.name)}
-        </div>
-        <div class="wait-status" style="color: ${color};">
-          ${est.densityLevel.label} · ${est.density}% density
-        </div>
-        <div class="wait-recommendation">
-          <span>${VenueUtils.sanitizeHTML(est.recommendation.text)}</span>
-        </div>
+        <div class="wait-name">${icons[est.type] || '📍'} ${VenueUtils.sanitizeHTML(est.name)}</div>
+        <div class="wait-status" style="color:${color}">${est.densityLevel.label} · ${est.density}%</div>
+        <div class="wait-recommendation">${VenueUtils.sanitizeHTML(est.recommendation.text)}</div>
+        ${alt && est.density > 55 ? `
+          <div class="wait-alt">
+            💡 <strong>${VenueUtils.sanitizeHTML(alt.name)}</strong> — ${Math.round(alt.density)}% density
+          </div>
+        ` : ''}
       </div>
     `;
   }
 
   /* ==========================================
-     AI Assistant Panel
+     MAP PANEL
      ========================================== */
 
-  /**
-   * Render the AI assistant chat panel.
-   * @private
-   */
+  function _renderMapPanel() {
+    // Map is already in the DOM; just trigger resize
+    if (typeof google !== 'undefined' && google.maps) {
+      google.maps.event.trigger(document.getElementById('venue-map-embed'), 'resize');
+    }
+  }
+
+  /* ==========================================
+     ASSISTANT PANEL
+     ========================================== */
+
   function _renderAssistantPanel() {
     const panel = document.getElementById('panel-assistant');
-    if (!panel || panel.querySelector('.chat-messages')) return; // Already rendered
+    if (!panel || panel.querySelector('.chat-messages')) return;
 
     panel.innerHTML = `
       <div class="chat-panel">
@@ -565,256 +744,130 @@ const VenueFlowApp = (() => {
           <div class="chat-avatar" aria-hidden="true">🤖</div>
           <div class="chat-header-info">
             <div class="chat-header-name">VenueFlow AI</div>
-            <div class="chat-header-status">
-              <span class="live-dot" style="width: 6px; height: 6px;"></span> Online
-            </div>
+            <div class="chat-header-status"><span class="live-dot" style="width:6px;height:6px;"></span> Online</div>
           </div>
           <button class="btn btn-ghost" id="btn-clear-chat" aria-label="Clear conversation">🗑️</button>
         </div>
         <div class="chat-messages" id="chat-messages" role="log" aria-label="Chat messages" aria-live="polite">
-          <!-- Welcome message -->
           <div class="chat-message assistant">
             <div class="message-avatar">🤖</div>
             <div class="message-bubble">
               <strong>Hey there! 👋</strong><br><br>
-              I'm your VenueFlow AI assistant for Narendra Modi Stadium. I can help you find food, restrooms, navigate gates, check crowd levels, and more!<br><br>
-              Try asking me anything or use the quick actions below.
+              I'm your VenueFlow AI assistant for Narendra Modi Stadium. I have real-time data on crowd levels, wait times, and facilities. Ask me anything!<br><br>
+              Try the quick actions below or type your question.
             </div>
           </div>
         </div>
         <div class="chat-chips" id="chat-chips">
-          ${GeminiService.getQuickActions().map(action => `
-            <button class="chip" data-query="${VenueUtils.sanitizeHTML(action.query)}" aria-label="${action.label}">
-              ${action.label}
-            </button>
+          ${GeminiService.getQuickActions().map(a => `
+            <button class="chip" data-query="${VenueUtils.sanitizeHTML(a.query)}">${a.label}</button>
           `).join('')}
         </div>
         <div class="chat-input-container">
           <div class="chat-input-wrapper">
-            <textarea class="chat-input" id="chat-input" 
-                      placeholder="Ask me anything about the venue..." 
-                      rows="1" 
-                      aria-label="Type your message"
-                      maxlength="500"></textarea>
-            <button class="chat-send-btn" id="btn-send-chat" aria-label="Send message" disabled>
-              ➤
-            </button>
+            <textarea class="chat-input" id="chat-input" placeholder="Ask about food, gates, crowd, scores..."
+                      rows="1" aria-label="Message" maxlength="500"></textarea>
+            <button class="chat-send-btn" id="btn-send-chat" aria-label="Send" disabled>➤</button>
           </div>
         </div>
       </div>
     `;
-
-    // Set up chat interaction handlers
     _setupChatHandlers();
   }
 
-  /**
-   * Set up chat input and action handlers.
-   * @private
-   */
   function _setupChatHandlers() {
     const input = document.getElementById('chat-input');
     const sendBtn = document.getElementById('btn-send-chat');
     const clearBtn = document.getElementById('btn-clear-chat');
-    const chipsContainer = document.getElementById('chat-chips');
-
+    const chips = document.getElementById('chat-chips');
     if (!input || !sendBtn) return;
 
-    // Enable/disable send button based on input
     input.addEventListener('input', () => {
       sendBtn.disabled = !input.value.trim();
-      // Auto-resize textarea
       input.style.height = 'auto';
       input.style.height = Math.min(input.scrollHeight, 120) + 'px';
     });
-
-    // Send on Enter (Shift+Enter for newline)
     input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        if (input.value.trim()) _sendChatMessage(input.value.trim());
-      }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (input.value.trim()) _sendChat(input.value.trim()); }
     });
-
-    // Send button click
-    sendBtn.addEventListener('click', () => {
-      if (input.value.trim()) _sendChatMessage(input.value.trim());
+    sendBtn.addEventListener('click', () => { if (input.value.trim()) _sendChat(input.value.trim()); });
+    if (clearBtn) clearBtn.addEventListener('click', () => {
+      GeminiService.clearHistory();
+      const m = document.getElementById('chat-messages');
+      if (m) m.innerHTML = '<div class="chat-message assistant"><div class="message-avatar">🤖</div><div class="message-bubble">Conversation cleared! How can I help? 😊</div></div>';
     });
-
-    // Clear chat
-    if (clearBtn) {
-      clearBtn.addEventListener('click', () => {
-        GeminiService.clearHistory();
-        const messages = document.getElementById('chat-messages');
-        if (messages) {
-          messages.innerHTML = `
-            <div class="chat-message assistant">
-              <div class="message-avatar">🤖</div>
-              <div class="message-bubble">Conversation cleared! How can I help you? 😊</div>
-            </div>
-          `;
-        }
-      });
-    }
-
-    // Quick action chips
-    if (chipsContainer) {
-      chipsContainer.addEventListener('click', (e) => {
-        const chip = e.target.closest('.chip');
-        if (chip) _sendChatMessage(chip.dataset.query);
-      });
-    }
+    if (chips) chips.addEventListener('click', (e) => { const c = e.target.closest('.chip'); if (c) _sendChat(c.dataset.query); });
   }
 
-  /**
-   * Send a chat message and display the response.
-   * @param {string} message - User message
-   * @private
-   */
-  async function _sendChatMessage(message) {
-    const messagesContainer = document.getElementById('chat-messages');
+  async function _sendChat(msg) {
+    const container = document.getElementById('chat-messages');
     const input = document.getElementById('chat-input');
     const sendBtn = document.getElementById('btn-send-chat');
-    
-    if (!messagesContainer || !input) return;
+    if (!container || !input) return;
 
-    // Display user message
-    messagesContainer.innerHTML += `
-      <div class="chat-message user">
-        <div class="message-avatar">👤</div>
-        <div class="message-bubble">${VenueUtils.sanitizeHTML(message)}</div>
-      </div>
-    `;
+    container.innerHTML += `<div class="chat-message user"><div class="message-avatar">👤</div><div class="message-bubble">${VenueUtils.sanitizeHTML(msg)}</div></div>`;
+    input.value = ''; input.style.height = 'auto'; sendBtn.disabled = true;
 
-    // Clear input
-    input.value = '';
-    input.style.height = 'auto';
-    sendBtn.disabled = true;
+    const tid = VenueUtils.generateId('t');
+    container.innerHTML += `<div class="chat-message assistant" id="${tid}"><div class="message-avatar">🤖</div><div class="message-bubble"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div></div>`;
+    container.scrollTop = container.scrollHeight;
 
-    // Show typing indicator
-    const typingId = VenueUtils.generateId('typing');
-    messagesContainer.innerHTML += `
-      <div class="chat-message assistant" id="${typingId}">
-        <div class="message-avatar">🤖</div>
-        <div class="message-bubble">
-          <div class="typing-indicator">
-            <div class="typing-dot"></div>
-            <div class="typing-dot"></div>
-            <div class="typing-dot"></div>
-          </div>
-        </div>
-      </div>
-    `;
+    // Include match state in context
+    const context = { crowdData: state.crowdData, eventPhase: state.currentPhase, matchState: state.matchState };
+    const response = await GeminiService.sendMessage(msg, context);
 
-    // Scroll to bottom
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-    // Get AI response
-    const response = await GeminiService.sendMessage(message, {
-      crowdData: state.crowdData,
-      eventPhase: state.currentPhase
-    });
-
-    // Remove typing indicator
-    const typingEl = document.getElementById(typingId);
-    if (typingEl) typingEl.remove();
-
-    // Display AI response (convert markdown-like formatting to HTML)
-    const formattedResponse = _formatChatResponse(response);
-    messagesContainer.innerHTML += `
-      <div class="chat-message assistant">
-        <div class="message-avatar">🤖</div>
-        <div class="message-bubble">${formattedResponse}</div>
-      </div>
-    `;
-
-    // Scroll to bottom
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-  }
-
-  /**
-   * Format chat response with basic markdown support.
-   * @param {string} text - Raw response text
-   * @returns {string} HTML formatted text
-   */
-  function _formatChatResponse(text) {
-    return VenueUtils.sanitizeHTML(text)
+    const te = document.getElementById(tid); if (te) te.remove();
+    const formatted = VenueUtils.sanitizeHTML(response)
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/\n/g, '<br>')
       .replace(/- (.*?)(?:<br>|$)/g, '• $1<br>');
+    container.innerHTML += `<div class="chat-message assistant"><div class="message-avatar">🤖</div><div class="message-bubble">${formatted}</div></div>`;
+    container.scrollTop = container.scrollHeight;
   }
 
   /* ==========================================
-     Alerts Panel
+     ALERTS PANEL
      ========================================== */
 
-  /**
-   * Render the alerts panel.
-   * @private
-   */
   function _renderAlertsPanel() {
     const body = document.getElementById('alerts-body');
     if (!body) return;
-
     const alerts = NotificationService.getAlerts();
 
     if (alerts.length === 0) {
-      body.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-state-icon">📢</div>
-          <div class="empty-state-title">No alerts yet</div>
-          <div class="empty-state-text">You'll see real-time venue updates, deals, and important notifications here.</div>
-        </div>
-      `;
+      body.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📢</div><div class="empty-state-title">No alerts yet</div><div class="empty-state-text">Real-time venue updates will appear here.</div></div>';
       return;
     }
 
-    body.innerHTML = `
-      <div class="alerts-list" role="list" aria-label="Venue alerts">
-        ${alerts.map(alert => `
-          <div class="alert-card ${alert.read ? '' : 'unread'}" role="listitem"
-               aria-label="${VenueUtils.sanitizeHTML(alert.title)}">
-            <div class="alert-icon ${alert.type}">
-              ${alert.type === 'info' ? 'ℹ️' : alert.type === 'warning' ? '⚠️' : alert.type === 'deal' ? '🎉' : '🚨'}
-            </div>
-            <div class="alert-content">
-              <div class="alert-title">${VenueUtils.sanitizeHTML(alert.title)}</div>
-              <div class="alert-text">${VenueUtils.sanitizeHTML(alert.message)}</div>
-              <div class="alert-time">${VenueUtils.formatRelativeTime(alert.timestamp)}</div>
-            </div>
-          </div>
-        `).join('')}
+    body.innerHTML = `<div class="alerts-list" role="list">${alerts.map(a => `
+      <div class="alert-card ${a.read ? '' : 'unread'}" role="listitem">
+        <div class="alert-icon ${a.type}">${a.type === 'info' ? 'ℹ️' : a.type === 'warning' ? '⚠️' : a.type === 'deal' ? '🎉' : '🚨'}</div>
+        <div class="alert-content">
+          <div class="alert-title">${VenueUtils.sanitizeHTML(a.title)}</div>
+          <div class="alert-text">${VenueUtils.sanitizeHTML(a.message)}</div>
+          <div class="alert-time">${VenueUtils.formatRelativeTime(a.timestamp)}</div>
+        </div>
       </div>
-    `;
+    `).join('')}</div>`;
   }
 
-  /**
-   * Update the alert badge count.
-   * @private
-   */
   function _updateAlertBadge() {
     const badge = document.getElementById('alert-badge');
     if (!badge) return;
-
     const count = NotificationService.getUnreadCount();
     badge.textContent = count;
     badge.style.display = count > 0 ? 'flex' : 'none';
   }
 
   /* ==========================================
-     Settings Panel
+     SETTINGS PANEL
      ========================================== */
 
-  /**
-   * Render the accessibility settings panel.
-   * @private
-   */
   function _renderSettingsPanel() {
     const body = document.getElementById('settings-body');
     if (!body) return;
-
-    const settings = AccessibilityService.getSettings();
+    const s = AccessibilityService.getSettings();
 
     body.innerHTML = `
       <div class="settings-section">
@@ -822,30 +875,26 @@ const VenueFlowApp = (() => {
         <div class="settings-item">
           <div class="settings-item-info">
             <div class="settings-item-label">Theme</div>
-            <div class="settings-item-desc">Current: ${settings.theme}</div>
+            <div class="settings-item-desc">Current: ${s.theme}</div>
           </div>
-          <div style="display: flex; gap: var(--space-2);">
-            <button class="btn btn-secondary ${settings.theme === 'dark' ? 'btn-primary' : ''}" 
-                    onclick="VenueFlowApp.setTheme('dark')" aria-label="Dark theme">🌙</button>
-            <button class="btn btn-secondary ${settings.theme === 'light' ? 'btn-primary' : ''}" 
-                    onclick="VenueFlowApp.setTheme('light')" aria-label="Light theme">☀️</button>
-            <button class="btn btn-secondary ${settings.theme === 'high-contrast' ? 'btn-primary' : ''}" 
-                    onclick="VenueFlowApp.setTheme('high-contrast')" aria-label="High contrast theme">🔳</button>
+          <div style="display:flex;gap:var(--space-2);">
+            <button class="btn btn-secondary ${s.theme === 'dark' ? 'btn-primary' : ''}" onclick="VenueFlowApp.setTheme('dark')">🌙</button>
+            <button class="btn btn-secondary ${s.theme === 'light' ? 'btn-primary' : ''}" onclick="VenueFlowApp.setTheme('light')">☀️</button>
+            <button class="btn btn-secondary ${s.theme === 'high-contrast' ? 'btn-primary' : ''}" onclick="VenueFlowApp.setTheme('high-contrast')">🔳</button>
           </div>
         </div>
         <div class="settings-item">
           <div class="settings-item-info">
             <div class="settings-item-label">Font Size</div>
-            <div class="settings-item-desc" id="font-size-display">${settings.fontSize}%</div>
+            <div class="settings-item-desc" id="font-size-display">${s.fontSize}%</div>
           </div>
-          <div style="display: flex; align-items: center; gap: var(--space-2);">
-            <button class="btn btn-secondary" onclick="VenueFlowApp.decreaseFontSize()" aria-label="Decrease font size">A-</button>
-            <button class="btn btn-secondary" onclick="VenueFlowApp.resetFontSize()" aria-label="Reset font size">A</button>
-            <button class="btn btn-secondary" onclick="VenueFlowApp.increaseFontSize()" aria-label="Increase font size">A+</button>
+          <div style="display:flex;gap:var(--space-2);">
+            <button class="btn btn-secondary" onclick="VenueFlowApp.decreaseFontSize()">A-</button>
+            <button class="btn btn-secondary" onclick="VenueFlowApp.resetFontSize()">A</button>
+            <button class="btn btn-secondary" onclick="VenueFlowApp.increaseFontSize()">A+</button>
           </div>
         </div>
       </div>
-
       <div class="settings-section">
         <div class="settings-title">Accessibility</div>
         <div class="settings-item">
@@ -853,27 +902,29 @@ const VenueFlowApp = (() => {
             <div class="settings-item-label">Reduced Motion</div>
             <div class="settings-item-desc">Minimize animations</div>
           </div>
-          <label class="toggle">
-            <input type="checkbox" ${settings.reducedMotion ? 'checked' : ''} 
-                   onchange="VenueFlowApp.setReducedMotion(this.checked)"
-                   aria-label="Toggle reduced motion">
-            <span class="toggle-slider"></span>
-          </label>
+          <label class="toggle"><input type="checkbox" ${s.reducedMotion ? 'checked' : ''} onchange="VenueFlowApp.setReducedMotion(this.checked)"><span class="toggle-slider"></span></label>
         </div>
       </div>
-
+      <div class="settings-section">
+        <div class="settings-title">Match Simulation</div>
+        <div class="settings-item">
+          <div class="settings-item-info">
+            <div class="settings-item-label">Live Engine</div>
+            <div class="settings-item-desc">Ball-by-ball simulation driving real-time data</div>
+          </div>
+          <span style="color:var(--color-success);font-weight:700;">● Running</span>
+        </div>
+      </div>
       <div class="settings-section">
         <div class="settings-title">About VenueFlow</div>
-        <div class="settings-item" style="flex-direction: column; align-items: flex-start; gap: var(--space-2);">
-          <div class="settings-item-label">Smart Venue Assistant</div>
-          <div class="settings-item-desc" style="line-height: 1.6;">
-            VenueFlow uses AI to enhance the physical event experience at large-scale sporting venues.
-            Powered by Google Gemini AI, Google Maps, and Firebase.<br><br>
-            <strong>Google Services Integration:</strong><br>
-            • Google Maps JavaScript API — Venue navigation<br>
+        <div class="settings-item" style="flex-direction:column;align-items:flex-start;gap:var(--space-2);">
+          <div class="settings-item-desc" style="line-height:1.7;">
+            VenueFlow uses AI to enhance the physical event experience at large-scale sporting venues.<br><br>
+            <strong>Google Services:</strong><br>
+            • Google Maps JS API — Venue navigation<br>
             • Google Gemini AI — Smart assistant<br>
             • Firebase Realtime Database — Live crowd data<br>
-            • Firebase Auth — Session management<br>
+            • Firebase Auth — Anonymous sessions<br>
             • Google Fonts — Typography<br><br>
             Built for PromptWars Week 1 · Physical Event Experience
           </div>
@@ -883,56 +934,21 @@ const VenueFlowApp = (() => {
   }
 
   /* ==========================================
-     Public Methods (for HTML onclick handlers)
-     ========================================== */
-
-  function setTheme(theme) {
-    AccessibilityService.setTheme(theme);
-    _renderSettingsPanel();
-  }
-
-  function increaseFontSize() {
-    AccessibilityService.increaseFontSize();
-    const display = document.getElementById('font-size-display');
-    if (display) display.textContent = AccessibilityService.getSettings().fontSize + '%';
-  }
-
-  function decreaseFontSize() {
-    AccessibilityService.decreaseFontSize();
-    const display = document.getElementById('font-size-display');
-    if (display) display.textContent = AccessibilityService.getSettings().fontSize + '%';
-  }
-
-  function resetFontSize() {
-    AccessibilityService.setFontSize(100);
-    const display = document.getElementById('font-size-display');
-    if (display) display.textContent = '100%';
-    VenueUtils.announceToScreenReader('Font size reset to 100%');
-  }
-
-  function setReducedMotion(enabled) {
-    AccessibilityService.setReducedMotion(enabled);
-  }
-
-  /* ==========================================
      Public API
      ========================================== */
 
-  return {
-    init,
-    navigateTo,
-    setTheme,
-    increaseFontSize,
-    decreaseFontSize,
-    resetFontSize,
-    setReducedMotion
-  };
+  function setTheme(t) { AccessibilityService.setTheme(t); _renderSettingsPanel(); }
+  function increaseFontSize() { AccessibilityService.increaseFontSize(); const d = document.getElementById('font-size-display'); if (d) d.textContent = AccessibilityService.getSettings().fontSize + '%'; }
+  function decreaseFontSize() { AccessibilityService.decreaseFontSize(); const d = document.getElementById('font-size-display'); if (d) d.textContent = AccessibilityService.getSettings().fontSize + '%'; }
+  function resetFontSize() { AccessibilityService.setFontSize(100); const d = document.getElementById('font-size-display'); if (d) d.textContent = '100%'; }
+  function setReducedMotion(e) { AccessibilityService.setReducedMotion(e); }
 
+  return {
+    init, navigateTo,
+    setTheme, increaseFontSize, decreaseFontSize, resetFontSize, setReducedMotion
+  };
 })();
 
-// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-  VenueFlowApp.init().catch(err => {
-    console.error('[VenueFlow] Critical init error:', err);
-  });
+  VenueFlowApp.init().catch(e => console.error('[VenueFlow] Init error:', e));
 });
