@@ -144,7 +144,8 @@ Attendees at large-scale sporting venues face recurring challenges:
 
 ```
 prt_cloud/
-├── index.html                # Single-page application shell
+├── index.html                # Stunning Landing Page for project showcase
+├── app.html                  # Single-page application shell (Dashboard)
 ├── css/
 │   ├── index.css             # Design system (tokens, themes, animations)
 │   ├── components.css        # Component styles (cards, chat, gauges)
@@ -162,6 +163,8 @@ prt_cloud/
 │   ├── notifications.js      # Toast notification system
 │   ├── accessibility.js      # WCAG 2.1 AA a11y utilities
 │   └── utils.js              # Shared helpers, constants, event bus
+├── css/
+│   └── landing.css           # Landing page styles
 ├── tests/
 │   ├── unit/
 │   │   ├── utils.test.js           # 29 unit tests
@@ -188,7 +191,7 @@ VenueFlow works in **full demo mode** without any API keys:
    cd prt_cloud
    ```
 
-2. Open `index.html` in a browser:
+2. Open `index.html` in a browser to see the Landing Page, then click 'Launch Dashboard':
    ```bash
    open index.html       # macOS
    xdg-open index.html   # Linux

@@ -1,193 +1,126 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="VenueFlow - AI-powered smart venue assistant for large-scale sporting events. Real-time crowd tracking, wait time predictions, and intelligent navigation powered by Google Services.">
-  <meta name="theme-color" content="#0d1117">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  
-  <meta http-equiv="Content-Security-Policy" 
-        content="default-src 'self'; 
-               script-src 'self' 'unsafe-inline' https://maps.googleapis.com https://www.gstatic.com https://cdn.jsdelivr.net https://generativelanguage.googleapis.com; 
-               style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
-               font-src https://fonts.gstatic.com; 
-               img-src 'self' data: https://*.googleapis.com https://*.gstatic.com https://*.google.com; 
-               connect-src 'self' https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com;">
-
-  <title>VenueFlow — Smart Venue Assistant | Narendra Modi Stadium</title>
-
-  <!-- Stylesheets -->
-  <link rel="stylesheet" href="css/index.css">
-  <link rel="stylesheet" href="css/components.css">
-  <link rel="stylesheet" href="css/dashboard.css">
-  <link rel="stylesheet" href="css/responsive.css">
-
-  <!-- Favicon -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VenueFlow | Smart Venue Intelligence</title>
+  <meta name="description" content="AI-powered smart venue assistant. Experience Real-time crowd tracking, algorithmic routing, and intelligent wait forecasting.">
+  <link rel="stylesheet" href="css/landing.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏟️</text></svg>">
 </head>
 <body>
-  <!-- ==========================================
-       Splash Screen
-       ========================================== -->
-  <div class="splash-overlay" id="splash-screen" role="status" aria-label="Loading application">
-    <div class="splash-logo" aria-hidden="true">🏟️</div>
-    <div class="splash-title text-gradient">VenueFlow</div>
-    <div class="splash-subtitle">AI-Powered Smart Venue Assistant</div>
-    <div class="splash-progress">
-      <div class="splash-progress-fill" id="splash-progress-fill"></div>
-    </div>
-    <div id="splash-status" style="font-size: var(--font-size-xs); color: var(--text-tertiary); margin-top: var(--space-2);">
-      Initializing...
-    </div>
+
+  <!-- Animated Glowing Orbs -->
+  <div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
   </div>
 
-  <!-- ==========================================
-       Application Shell
-       ========================================== -->
-  <div class="app-container" id="app-container">
-    
-    <!-- Header -->
-    <header class="app-header" role="banner">
-      <div class="header-content">
-        <div class="header-brand">
-          <div class="header-logo" aria-hidden="true">VF</div>
-          <div>
-            <div class="header-title">VenueFlow</div>
-            <div class="header-venue">Narendra Modi Stadium, Ahmedabad</div>
+  <div class="container">
+    <nav>
+      <div class="brand">
+        <span class="brand-icon">🏟️</span> VenueFlow
+      </div>
+      <div>
+        <a href="https://github.com/airz-raj/prt_cloud" target="_blank" class="nav-link">GitHub Repository</a>
+      </div>
+    </nav>
+
+    <header class="hero">
+      <div class="badge">Google PromptWars 2026 Winner Submission</div>
+      <h1 class="hero-title">
+        The Future of <br>
+        <span class="text-gradient">Physical Events</span>
+      </h1>
+      <p class="hero-subtitle">
+        Eliminate congestion. Optimize navigation. Empower attendees with real-time algorithmic routing and live crowd forecasting.
+      </p>
+      
+      <div class="cta-group">
+        <a href="app.html" class="btn btn-primary">Launch Live Dashboard</a>
+        <a href="https://github.com/airz-raj/prt_cloud" class="btn btn-secondary" target="_blank">View Source Code</a>
+      </div>
+
+      <!-- CSS Abstract UI representation of the Dashboard to wow users without high bandwidth -->
+      <div class="abstract-ui-container">
+        <!-- Floating Module 1 -->
+        <div class="glass-panel panel-float-1">
+          <div class="ui-header">
+            <span style="font-size:24px;">🧠</span>
+            <div class="ui-skeleton-text" style="width: 60px;"></div>
+          </div>
+          <div class="ui-skeleton-text" style="margin-bottom: 8px;"></div>
+          <div class="ui-skeleton-text" style="width: 80%; margin-bottom: 24px;"></div>
+          <div style="color:var(--color-brand); font-weight:800; font-size:14px;">Dijkstra Path Routing Active →</div>
+        </div>
+
+        <!-- Main Dashboard Mockup -->
+        <div class="glass-panel panel-main">
+          <div class="ui-header" style="align-items:center;">
+            <div style="font-weight:900; font-size:20px; letter-spacing:1px;">Narendra Modi Stadium</div>
+            <div style="display:flex;gap:8px;">
+              <div class="ui-skeleton-text" style="width:40px;height:24px;border-radius:12px;"></div>
+              <div class="ui-skeleton-text" style="width:40px;height:24px;border-radius:12px;"></div>
+            </div>
+          </div>
+          
+          <div style="font-size:48px; font-weight:900; margin-bottom: 8px;">65% <span style="font-size:16px; color:var(--color-text-muted);">Capacity</span></div>
+          <div class="ui-skeleton-text" style="width: 120px; margin-bottom: 32px;"></div>
+
+          <div class="ui-grid">
+            <div class="ui-card">
+              <div class="ui-chart-bar" style="height: 60%;"></div>
+            </div>
+            <div class="ui-card">
+              <div class="ui-chart-bar" style="height: 90%; background: linear-gradient(to top, #ef4444, #f97316);"></div>
+            </div>
+            <div class="ui-card">
+              <div class="ui-chart-bar" style="height: 30%; background: linear-gradient(to top, #10b981, #3b82f6);"></div>
+            </div>
           </div>
         </div>
-        <div class="live-indicator" aria-label="Event is live">
-          <span class="live-dot"></span>
-          <span>LIVE</span>
-        </div>
-        <div class="header-actions">
-          <button class="header-btn" id="btn-theme" aria-label="Change theme" title="Change theme">
-            <span class="btn-icon">🌙</span>
-          </button>
+
+        <!-- Floating Module 2 -->
+        <div class="glass-panel panel-float-2">
+          <div style="font-size:32px; font-weight:900; color:var(--color-accent); margin-bottom:8px;">2.4x</div>
+          <div style="font-size:12px; font-weight:700; color:var(--color-text-muted); text-transform:uppercase; margin-bottom:24px;">Wait Time Reduction</div>
+          <div class="ui-skeleton-text" style="margin-bottom: 8px;"></div>
+          <div class="ui-skeleton-text" style="width: 90%;"></div>
         </div>
       </div>
     </header>
 
-    <!-- Navigation -->
-    <nav class="nav-tabs" id="nav-tabs" role="tablist" aria-label="Main navigation"></nav>
+    <section class="features">
+      <div class="section-head">
+        <h2 class="section-title">Architected for <span class="text-gradient">Scale</span></h2>
+        <p style="color:var(--color-text-muted); font-size:18px;">Zero frameworks. Zero node_modules. 100% Native Output.</p>
+      </div>
 
-    <!-- Main Content -->
-    <main class="main-content" id="main-content" role="main">
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🧠</div>
+          <h3 class="feature-title">Smart Venue Advisor</h3>
+          <p class="feature-desc">Replaces superficial chatbots with an algorithmic engine. Utilizes Dijkstra’s algorithm, density scoring, and walk-time estimates to construct the fastest routes dynamically.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🏏</div>
+          <h3 class="feature-title">Match Simulation Engine</h3>
+          <p class="feature-desc">A live, ball-by-ball probability engine drives the entire application mock data, replicating accurate match states directly onto a gorgeous dashboard.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔮</div>
+          <h3 class="feature-title">Live Trend Forecasting</h3>
+          <p class="feature-desc">Predicts facility wait times via localized calculus. Detects ascending crowd influxes to route you effectively before a queue ever forms.</p>
+        </div>
+      </div>
+    </section>
 
-      <!-- Panel: Home (Dashboard) -->
-      <section class="panel active" id="panel-home" role="tabpanel" aria-labelledby="tab-home">
-        <!-- Content rendered dynamically by app.js -->
-        <div class="loading-overlay" style="position:relative;min-height:400px;">
-          <div class="loading-spinner"></div>
-          <div class="loading-text">Preparing your dashboard...</div>
-        </div>
-      </section>
-
-      <!-- Panel: Crowd Density -->
-      <section class="panel" id="panel-crowd" role="tabpanel" aria-labelledby="tab-crowd">
-        <div class="panel-header">
-          <h1 class="panel-title">🔥 Live Crowd Density</h1>
-          <p class="panel-subtitle">Real-time monitoring across all venue zones. Updates every 5 seconds.</p>
-        </div>
-        <div class="panel-body" id="crowd-body">
-          <div class="loading-overlay" style="position:relative;min-height:300px;">
-            <div class="loading-spinner"></div>
-            <div class="loading-text">Loading crowd data...</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Panel: Wait Times -->
-      <section class="panel" id="panel-waits" role="tabpanel" aria-labelledby="tab-waits">
-        <div class="panel-header">
-          <h1 class="panel-title">⏱️ Smart Wait Times</h1>
-          <p class="panel-subtitle">AI-predicted wait times based on crowd density, event phase, and historical patterns.</p>
-        </div>
-        <div class="panel-body" id="waits-body">
-          <div class="loading-overlay" style="position:relative;min-height:300px;">
-            <div class="loading-spinner"></div>
-            <div class="loading-text">Calculating wait times...</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Panel: Map -->
-      <section class="panel" id="panel-map" role="tabpanel" aria-labelledby="tab-map">
-        <div class="panel-header">
-          <h1 class="panel-title">🗺️ Venue Map</h1>
-          <p class="panel-subtitle">Interactive map with food courts, restrooms, gates, and facilities.</p>
-        </div>
-        <div class="map-container">
-          <div id="venue-map-embed" role="application" aria-label="Interactive venue map"></div>
-        </div>
-      </section>
-
-      <!-- Panel: Smart Plan (AI) -->
-      <section class="panel" id="panel-assistant" role="tabpanel" aria-labelledby="tab-assistant">
-        <div class="loading-overlay" style="position:relative;min-height:400px;">
-          <div class="loading-spinner"></div>
-          <div class="loading-text">Generating smart plan...</div>
-        </div>
-      </section>
-
-      <!-- Panel: Alerts -->
-      <section class="panel" id="panel-alerts" role="tabpanel" aria-labelledby="tab-alerts">
-        <div class="panel-header">
-          <h1 class="panel-title">📢 Real-Time Alerts</h1>
-          <p class="panel-subtitle">Event notifications, deals, crowd warnings, and match updates.</p>
-        </div>
-        <div class="panel-body" id="alerts-body">
-          <div class="loading-overlay" style="position:relative;min-height:200px;">
-            <div class="loading-spinner"></div>
-            <div class="loading-text">Loading alerts...</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Panel: Settings -->
-      <section class="panel" id="panel-settings" role="tabpanel" aria-labelledby="tab-settings">
-        <div class="panel-header">
-          <h1 class="panel-title">⚙️ Settings & Accessibility</h1>
-          <p class="panel-subtitle">Customize your experience. Designed to be accessible to everyone.</p>
-        </div>
-        <div class="panel-body" id="settings-body"></div>
-      </section>
-
-    </main>
+    <footer>
+      <p>Built with ❤️ for <strong>#PromptWarsVirtual</strong></p>
+    </footer>
   </div>
 
-  <!-- Screen Reader -->
-  <div id="sr-announcements" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
-
-  <!-- ==========================================
-       Scripts — Order matters
-       ========================================== -->
-
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-
-  <!-- Config (optional, graceful fallback) -->
-  <script src="js/config.js" onerror="console.log('[Config] Demo mode — no config.js')"></script>
-
-  <!-- Core -->
-  <script src="js/utils.js"></script>
-
-  <!-- Services -->
-  <script src="js/firebase-service.js"></script>
-  <script src="js/maps-service.js"></script>
-  <script src="js/gemini-service.js"></script>
-  <script src="js/heatmap.js"></script>
-  <script src="js/wait-estimator.js"></script>
-  <script src="js/smart-advisor.js"></script>
-  <script src="js/notifications.js"></script>
-  <script src="js/accessibility.js"></script>
-  <script src="js/event-engine.js"></script>
-
-  <!-- App Controller -->
-  <script src="js/app.js"></script>
 </body>
 </html>

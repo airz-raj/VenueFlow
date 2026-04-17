@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="VenueFlow - AI-powered smart venue assistant for large-scale sporting events. Real-time crowd tracking, wait time predictions, and intelligent navigation powered by Google Services.">
+  <meta name="theme-color" content="#0d1117">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <meta http-equiv="Content-Security-Policy" 
+        content="default-src 'self'; 
+               script-src 'self' 'unsafe-inline' https://maps.googleapis.com https://www.gstatic.com https://cdn.jsdelivr.net https://generativelanguage.googleapis.com; 
+               style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
+               font-src https://fonts.gstatic.com; 
+               img-src 'self' data: https://*.googleapis.com https://*.gstatic.com https://*.google.com; 
+               connect-src 'self' https://generativelanguage.googleapis.com https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com;">
+
+  <title>VenueFlow — Smart Venue Assistant | Narendra Modi Stadium</title>
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/index.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="css/responsive.css">
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏟️</text></svg>">
+</head>
+<body>
+  <!-- ==========================================
+       Splash Screen
+       ========================================== -->
+  <div class="splash-overlay" id="splash-screen" role="status" aria-label="Loading application">
+    <div class="splash-logo" aria-hidden="true">🏟️</div>
+    <div class="splash-title text-gradient">VenueFlow</div>
+    <div class="splash-subtitle">AI-Powered Smart Venue Assistant</div>
+    <div class="splash-progress">
+      <div class="splash-progress-fill" id="splash-progress-fill"></div>
+    </div>
+    <div id="splash-status" style="font-size: var(--font-size-xs); color: var(--text-tertiary); margin-top: var(--space-2);">
+      Initializing...
+    </div>
+  </div>
+
+  <!-- ==========================================
+       Application Shell
+       ========================================== -->
+  <div class="app-container" id="app-container">
+    
+    <!-- Header -->
+    <header class="app-header" role="banner">
+      <div class="header-content">
+        <div class="header-brand">
+          <div class="header-logo" aria-hidden="true">VF</div>
+          <div>
+            <div class="header-title">VenueFlow</div>
+            <div class="header-venue">Narendra Modi Stadium, Ahmedabad</div>
+          </div>
+        </div>
+        <div class="live-indicator" aria-label="Event is live">
+          <span class="live-dot"></span>
+          <span>LIVE</span>
+        </div>
+        <div class="header-actions">
+          <button class="header-btn" id="btn-theme" aria-label="Change theme" title="Change theme">
+            <span class="btn-icon">🌙</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="nav-tabs" id="nav-tabs" role="tablist" aria-label="Main navigation"></nav>
+
+    <!-- Main Content -->
+    <main class="main-content" id="main-content" role="main">
+
+      <!-- Panel: Home (Dashboard) -->
+      <section class="panel active" id="panel-home" role="tabpanel" aria-labelledby="tab-home">
+        <!-- Content rendered dynamically by app.js -->
+        <div class="loading-overlay" style="position:relative;min-height:400px;">
+          <div class="loading-spinner"></div>
+          <div class="loading-text">Preparing your dashboard...</div>
+        </div>
+      </section>
+
+      <!-- Panel: Crowd Density -->
+      <section class="panel" id="panel-crowd" role="tabpanel" aria-labelledby="tab-crowd">
+        <div class="panel-header">
+          <h1 class="panel-title">🔥 Live Crowd Density</h1>
+          <p class="panel-subtitle">Real-time monitoring across all venue zones. Updates every 5 seconds.</p>
+        </div>
+        <div class="panel-body" id="crowd-body">
+          <div class="loading-overlay" style="position:relative;min-height:300px;">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading crowd data...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel: Wait Times -->
+      <section class="panel" id="panel-waits" role="tabpanel" aria-labelledby="tab-waits">
+        <div class="panel-header">
+          <h1 class="panel-title">⏱️ Smart Wait Times</h1>
+          <p class="panel-subtitle">AI-predicted wait times based on crowd density, event phase, and historical patterns.</p>
+        </div>
+        <div class="panel-body" id="waits-body">
+          <div class="loading-overlay" style="position:relative;min-height:300px;">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Calculating wait times...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel: Map -->
+      <section class="panel" id="panel-map" role="tabpanel" aria-labelledby="tab-map">
+        <div class="panel-header">
+          <h1 class="panel-title">🗺️ Venue Map</h1>
+          <p class="panel-subtitle">Interactive map with food courts, restrooms, gates, and facilities.</p>
+        </div>
+        <div class="map-container">
+          <div id="venue-map-embed" role="application" aria-label="Interactive venue map"></div>
+        </div>
+      </section>
+
+      <!-- Panel: Smart Plan (AI) -->
+      <section class="panel" id="panel-assistant" role="tabpanel" aria-labelledby="tab-assistant">
+        <div class="loading-overlay" style="position:relative;min-height:400px;">
+          <div class="loading-spinner"></div>
+          <div class="loading-text">Generating smart plan...</div>
+        </div>
+      </section>
+
+      <!-- Panel: Alerts -->
+      <section class="panel" id="panel-alerts" role="tabpanel" aria-labelledby="tab-alerts">
+        <div class="panel-header">
+          <h1 class="panel-title">📢 Real-Time Alerts</h1>
+          <p class="panel-subtitle">Event notifications, deals, crowd warnings, and match updates.</p>
+        </div>
+        <div class="panel-body" id="alerts-body">
+          <div class="loading-overlay" style="position:relative;min-height:200px;">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading alerts...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel: Settings -->
+      <section class="panel" id="panel-settings" role="tabpanel" aria-labelledby="tab-settings">
+        <div class="panel-header">
+          <h1 class="panel-title">⚙️ Settings & Accessibility</h1>
+          <p class="panel-subtitle">Customize your experience. Designed to be accessible to everyone.</p>
+        </div>
+        <div class="panel-body" id="settings-body"></div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Screen Reader -->
+  <div id="sr-announcements" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- ==========================================
+       Scripts — Order matters
+       ========================================== -->
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+  <!-- Config (optional, graceful fallback) -->
+  <script src="js/config.js" onerror="console.log('[Config] Demo mode — no config.js')"></script>
+
+  <!-- Core -->
+  <script src="js/utils.js"></script>
+
+  <!-- Services -->
+  <script src="js/firebase-service.js"></script>
+  <script src="js/maps-service.js"></script>
+  <script src="js/gemini-service.js"></script>
+  <script src="js/heatmap.js"></script>
+  <script src="js/wait-estimator.js"></script>
+  <script src="js/smart-advisor.js"></script>
+  <script src="js/notifications.js"></script>
+  <script src="js/accessibility.js"></script>
+  <script src="js/event-engine.js"></script>
+
+  <!-- App Controller -->
+  <script src="js/app.js"></script>
+</body>
+</html>
