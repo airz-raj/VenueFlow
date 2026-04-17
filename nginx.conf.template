@@ -1,6 +1,9 @@
 server {
     listen ${PORT};
     server_name localhost;
+    
+    port_in_redirect off;
+    absolute_redirect off;
 
     location / {
         root   /usr/share/nginx/html;
