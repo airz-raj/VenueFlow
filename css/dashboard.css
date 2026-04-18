@@ -999,6 +999,29 @@
    RESPONSIVE — Dashboard
    ========================================== */
 
+/* ==========================================
+   VENUE MAP
+   ========================================== */
+.map-container {
+  width: 100%;
+  height: 60vh;
+  min-height: 400px;
+  max-height: 800px;
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+}
+
+#venue-map-embed {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
 @media (max-width: 768px) {
   .scoreboard-body { flex-direction: column; gap: var(--space-3); }
   .score-divider { display: none; }
